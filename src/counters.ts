@@ -22,7 +22,6 @@ type ACBadge = {
   value: number;
   x: number;
   y: number;
-  viewScale: number;
   visible: boolean;
 };
 
@@ -32,6 +31,8 @@ const IMAGE_SCALE = 8;
 const IMAGE_WIDTH = 100 * IMAGE_SCALE;
 const GRID_HEIGHT = 40 * IMAGE_SCALE;
 const BAR_HEIGHT = 19 * IMAGE_SCALE;
+const AC_SIZE = 26 * IMAGE_SCALE;
+const AC_INSET = 2 * IMAGE_SCALE;
 let latestItems: Item[] | null = null;
 let sceneItems: Item[] | null = null;
 let syncing = false;
@@ -81,10 +82,9 @@ export function scheduleCounterSync(items: Item[]): void {
 }
 
 export async function syncCounterViewport(): Promise<void> {
-  if (!sceneItems || (acBadges.size === 0 && ![...counters.values()].some((counter) => counter.kind === "LABEL" || counter.labelId))) return;
+  if (!sceneItems || ![...counters.values()].some((counter) => counter.kind === "LABEL" || counter.labelId)) return;
   const viewScale = await OBR.viewport.getScale();
-  if ([...counters.values()].some((counter) => (counter.kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale) ||
-      [...acBadges.values()].some((badge) => badge.viewScale !== viewScale)) {
+  if ([...counters.values()].some((counter) => (counter.kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale)) {
     scheduleCounterSync(sceneItems);
   }
 }
@@ -303,50 +303,31 @@ async function reconcile(items: Item[]): Promise<void> {
 
   for (const { token, value } of acWanted.values()) {
     const bounds = await OBR.scene.items.getItemBounds([token.id]);
-    const diameter = 26;
-    const inset = 2;
-    const x = bounds.max.x - (diameter / 2 + inset) / viewScale;
-    const y = bounds.min.y + (diameter + inset) / viewScale;
+    const x = bounds.max.x;
+    const y = bounds.min.y;
     const badge = acBadges.get(token.id);
     if (badge) {
       if (badge.value !== value || badge.x !== x || badge.y !== y ||
-          badge.viewScale !== viewScale || badge.visible !== token.visible) {
+          badge.visible !== token.visible) {
         await OBR.scene.local.updateItems([badge.id], (localItems) => {
           for (const item of localItems) {
-            if (item.type !== "LABEL") continue;
-            const acLabel = item as Label;
-            acLabel.text.plainText = String(value);
-            acLabel.position = { x, y };
-            acLabel.scale = { x: 1, y: 1 };
-            acLabel.visible = token.visible;
-            acLabel.description = `Armor Class ${value}`;
+            if (item.type !== "BILLBOARD") continue;
+            const acBillboard = item as Billboard;
+            acBillboard.image.url = new URL(`/ac-badges/${value}.svg`, window.location.origin).href;
+            acBillboard.position = { x, y };
+            acBillboard.visible = token.visible;
+            acBillboard.description = `Armor Class ${value}`;
           }
         });
-        Object.assign(badge, { value, x, y, viewScale, visible: token.visible });
+        Object.assign(badge, { value, x, y, visible: token.visible });
       }
       continue;
     }
-    const label = buildLabel()
-      .plainText(String(value))
-      .width(26)
-      .height(26)
-      .padding(0)
-      .fontFamily("sans-serif")
-      .fontSize(16)
-      .fontWeight(700)
-      .textAlign("CENTER")
-      .textAlignVertical("MIDDLE")
-      .fillColor("#ffffff")
-      .strokeColor("#1e3358")
-      .strokeWidth(0.5)
-      .backgroundColor("#5c8fdb")
-      .backgroundOpacity(0.9)
-      .cornerRadius(13)
-      .pointerWidth(0)
-      .pointerHeight(0)
-      .pointerDirection("DOWN")
+    const billboard = buildBillboard(
+      { width: AC_SIZE, height: AC_SIZE, mime: "image/svg+xml", url: new URL(`/ac-badges/${value}.svg`, window.location.origin).href },
+      { dpi: sceneDpi * IMAGE_SCALE, offset: { x: AC_SIZE + AC_INSET, y: -AC_INSET } },
+    )
       .position({ x, y })
-      .scale({ x: 1, y: 1 })
       .attachedTo(token.id)
       .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY", "SCALE"])
       .layer("TEXT")
@@ -359,7 +340,7 @@ async function reconcile(items: Item[]): Promise<void> {
       .minViewScale(1)
       .maxViewScale(1)
       .build();
-    await OBR.scene.local.addItems([label]);
-    acBadges.set(token.id, { id: label.id, value, x, y, viewScale, visible: token.visible });
+    await OBR.scene.local.addItems([billboard]);
+    acBadges.set(token.id, { id: billboard.id, value, x, y, visible: token.visible });
   }
 }

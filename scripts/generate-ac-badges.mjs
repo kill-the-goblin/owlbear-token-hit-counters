@@ -1,0 +1,9 @@
+import { mkdir, writeFile } from "node:fs/promises";
+
+const output = new URL("../public/ac-badges/", import.meta.url);
+await mkdir(output, { recursive: true });
+
+for (let ac = 1; ac <= 99; ac += 1) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="208" height="208" viewBox="0 0 26 26"><rect x="1" y="1" width="24" height="24" rx="2" fill="#fff" stroke="#111" stroke-width="1"/><text x="13" y="20" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="#111">${ac}</text></svg>\n`;
+  await writeFile(new URL(`${ac}.svg`, output), svg);
+}
