@@ -2,10 +2,14 @@
 *{box-sizing:border-box}
 body{margin:0}
 #app{padding:7px;background:var(--obr-surface);height:100vh}
-.controls{display:flex;align-items:center;gap:8px;height:30px}
+.controls{display:flex;align-items:center;gap:8px;min-height:34px}
 .controls label{font-weight:600}
-.controls input{width:54px;height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:var(--obr-input);color:var(--obr-text);text-align:center;font:inherit}
-.controls input:focus{outline:2px solid #b42333;outline-offset:1px}
+.controls input,.controls select{height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:var(--obr-input);color:var(--obr-text);font:inherit}
+.controls input{width:54px;text-align:center}
+#offset{width:66px}
+.controls select{width:86px;padding:0 4px}
+.controls input:focus,.controls select:focus{outline:2px solid #b42333;outline-offset:1px}
 #remaining{color:var(--obr-muted);white-space:nowrap}
+small{display:block;color:var(--obr-muted);font-size:10px;margin-top:2px}
 #status{margin:4px 0 0;color:#ffb9b9;font-size:11px}
 #status[hidden]{display:none}

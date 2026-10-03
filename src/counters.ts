@@ -6,6 +6,8 @@ type Counter = {
   tokenId: string;
   maximum: number;
   remaining: number;
+  color: string;
+  offsetPx: number;
   x: number;
   y: number;
   width: number;
@@ -49,8 +51,8 @@ async function syncCounters(): Promise<void> {
   }
 }
 
-function counterImageUrl(remaining: number): string {
-  return new URL(`/hit-grids/${remaining}.svg`, window.location.origin).href;
+function counterImageUrl(remaining: number, color: string): string {
+  return new URL(`/hit-grids/${color}/${remaining}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
@@ -85,29 +87,33 @@ async function reconcile(items: Item[]): Promise<void> {
     const x = bounds.min.x + bounds.width / 2;
     const y = bounds.min.y;
     const width = counterSize(bounds.width, sceneDpi);
+    const offsetY = -hits.offsetPx * 100 / width;
     const counter = counters.get(token.id);
     if (counter) {
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
+          counter.color !== hits.color || counter.offsetPx !== hits.offsetPx ||
           counter.x !== x || counter.y !== y || counter.width !== width ||
           counter.visible !== token.visible) {
         await OBR.scene.local.updateItems([counter.id], (items) => {
           for (const item of items) {
             if (item.type !== "BILLBOARD") continue;
             const billboard = item as Billboard;
-            billboard.image.url = counterImageUrl(hits.remaining);
+            billboard.image.url = counterImageUrl(hits.remaining, hits.color);
+            billboard.grid.offset.y = offsetY;
             billboard.scale = { x: width / 100, y: width / 100 };
             billboard.position = { x, y };
             billboard.visible = token.visible;
             billboard.description = `${hits.remaining} of ${hits.maximum} hits remaining`;
           }
         });
-        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, x, y, width, visible: token.visible });
+        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, color: hits.color,
+          offsetPx: hits.offsetPx, x, y, width, visible: token.visible });
       }
       continue;
     }
     const billboard = buildBillboard(
-      { width: 100, height: 40, mime: "image/svg+xml", url: counterImageUrl(hits.remaining) },
-      { dpi: sceneDpi, offset: { x: 50, y: 0 } },
+      { width: 100, height: 40, mime: "image/svg+xml", url: counterImageUrl(hits.remaining, hits.color) },
+      { dpi: sceneDpi, offset: { x: 50, y: offsetY } },
     )
       .position({ x, y })
       .scale({ x: width / 100, y: width / 100 })
@@ -116,15 +122,17 @@ async function reconcile(items: Item[]): Promise<void> {
       .layer("TEXT")
       .visible(token.visible)
       .locked(true)
+      .disableHit(false)
       .name("Token Hit Counter")
       .description(`${hits.remaining} of ${hits.maximum} hits remaining`)
       .metadata({ [`${ID}/counter`]: token.id })
-      .minViewScale(0.01)
-      .maxViewScale(100)
+      .minViewScale(1)
+      .maxViewScale(1)
       .build();
     await OBR.scene.local.addItems([billboard]);
     counters.set(token.id, {
       id: billboard.id, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
+      color: hits.color, offsetPx: hits.offsetPx,
       x, y, width, visible: token.visible,
     });
   }

@@ -14,7 +14,7 @@ function adjustOne(tokenId: string, delta: -1 | 1): void {
           const hits = readHits(item.metadata[HITS_KEY]);
           if (!hits) continue;
           const remaining = Math.max(0, Math.min(hits.maximum, hits.remaining + delta));
-          if (remaining !== hits.remaining) item.metadata[HITS_KEY] = hitsData(hits.maximum, remaining);
+          if (remaining !== hits.remaining) item.metadata[HITS_KEY] = hitsData(hits.maximum, remaining, hits);
         }
       },
     );
@@ -32,7 +32,7 @@ OBR.onReady(async () => {
     icons: [{ icon: "/icon.svg", label: "Token Hit Counters", filter: {
       max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
     } }],
-    embed: { url: "/menu.html", height: 62 },
+    embed: { url: "/menu.html", height: 140 },
   });
 
   await OBR.tool.createMode({
