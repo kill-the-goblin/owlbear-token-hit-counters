@@ -4,18 +4,20 @@ import { HP_KEY, MENU_ID, MODE_ID, TOOL_ID, hpData, readHp } from "./hp";
 
 let clickQueue = Promise.resolve();
 
-function subtractOne(tokenId: string): void {
+function adjustOne(tokenId: string, delta: -1 | 1): void {
   clickQueue = clickQueue.then(async () => {
     if (await OBR.player.getRole() !== "GM") return;
     await OBR.scene.items.updateItems((item) => item.id === tokenId && item.layer === "CHARACTER", (items) => {
       for (const item of items) {
         const hp = readHp(item.metadata[HP_KEY]);
-        if (hp !== null && hp > 0) item.metadata[HP_KEY] = hpData(hp - 1);
+        if (hp !== null && (delta < 0 ? hp > 0 : hp < Number.MAX_SAFE_INTEGER)) {
+          item.metadata[HP_KEY] = hpData(hp + delta);
+        }
       }
     });
   }).catch((error: unknown) => {
-    console.error("Could not reduce token HP", error);
-    void OBR.notification.show("Could not reduce token HP.", "ERROR");
+    console.error("Could not adjust token HP", error);
+    void OBR.notification.show("Could not adjust token HP.", "ERROR");
   });
 }
 
@@ -27,7 +29,7 @@ OBR.onReady(async () => {
     icons: [{ icon: "/icon.svg", label: "Token HP", filter: {
       max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
     } }],
-    embed: { url: "/menu.html", height: 82 },
+    embed: { url: "/menu.html", height: 46 },
   });
 
   await OBR.tool.createMode({
@@ -36,7 +38,7 @@ OBR.onReady(async () => {
     onToolClick(_context, event) {
       const tokenId = event.target ? tokenForBadge(event.target.id) : undefined;
       if (!tokenId) return true;
-      subtractOne(tokenId);
+      adjustOne(tokenId, event.shiftKey ? 1 : -1);
       return false;
     },
   });

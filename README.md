@@ -2,7 +2,7 @@
 
 A GM-only hit point tracker for character tokens. Select one token to open its **Token HP** menu section. Type current HP and leave the field to save, or use the **−** and **+** buttons to change it by one immediately. Empty HP removes the badge; values stop at zero.
 
-A red badge at the token's upper-right corner shows current HP to the GM. Press **H** to activate Token HP mode, then click a badge to subtract one HP. Other map clicks retain Owlbear's normal selection behavior.
+A red badge at the token's upper-right corner shows current HP to the GM. Press **H** to activate Token HP mode, then click a badge to subtract one HP or Shift-click to add one HP. Other map clicks retain Owlbear's normal selection behavior.
 
 ## Development
 

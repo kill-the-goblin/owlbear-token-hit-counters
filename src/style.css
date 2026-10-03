@@ -3,7 +3,6 @@
 body{margin:0}
 button,input{font:inherit}
 #app{padding:6px 7px;background:var(--obr-surface);height:100vh}
-.heading{font-weight:700;margin:0 0 7px}
 .controls{display:flex;align-items:center;gap:5px}
 .controls button{width:28px;height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:color-mix(in srgb,var(--obr-surface) 87%,var(--obr-text));color:var(--obr-text);font-size:20px;line-height:1;cursor:pointer}
 .controls button:hover:not(:disabled){background:color-mix(in srgb,var(--obr-surface) 75%,var(--obr-text))}

@@ -1,7 +1,7 @@
-import OBR, { buildLabel, type Item } from "@owlbear-rodeo/sdk";
+import OBR, { buildLabel, type Item, type Label } from "@owlbear-rodeo/sdk";
 import { HP_KEY, ID, readHp } from "./hp";
 
-type Badge = { id: string; tokenId: string; hp: number };
+type Badge = { id: string; tokenId: string; hp: number; x: number; y: number; visible: boolean };
 const badges = new Map<string, Badge>();
 let latestItems: Item[] | null = null;
 let syncing = false;
@@ -52,22 +52,33 @@ async function reconcile(items: Item[]): Promise<void> {
   }
 
   for (const { token, hp } of wanted.values()) {
+    const bounds = await OBR.scene.items.getItemBounds([token.id]);
+    const x = bounds.max.x - bounds.width * 0.12;
+    const y = bounds.min.y + bounds.height * 0.12;
     const badge = badges.get(token.id);
     if (badge) {
-      if (badge.hp !== hp) {
+      if (badge.hp !== hp || badge.x !== x || badge.y !== y || badge.visible !== token.visible) {
         await OBR.scene.local.updateItems([badge.id], (labels) => {
-          for (const label of labels) if (label.type === "LABEL") label.text.plainText = String(hp);
+          for (const item of labels) {
+            if (item.type !== "LABEL") continue;
+            const label = item as Label;
+            label.text.plainText = String(hp);
+            label.position = { x, y };
+            label.visible = token.visible;
+          }
         });
         badge.hp = hp;
+        badge.x = x;
+        badge.y = y;
+        badge.visible = token.visible;
       }
       continue;
     }
-    const bounds = await OBR.scene.items.getItemBounds([token.id]);
     const label = buildLabel()
       .plainText(String(hp))
-      .position({ x: bounds.max.x - bounds.width * 0.12, y: bounds.min.y + bounds.height * 0.12 })
-      .attachedTo(token.id)
-      .layer("ATTACHMENT")
+      .position({ x, y })
+      .layer("TEXT")
+      .visible(token.visible)
       .locked(true)
       .name("Token HP")
       .description(`GM-only hit points: ${hp}`)
@@ -75,13 +86,16 @@ async function reconcile(items: Item[]): Promise<void> {
       .backgroundColor("#b42333")
       .fillColor("#ffffff")
       .cornerRadius(8)
+      .minViewScale(0.01)
+      .maxViewScale(100)
       .pointerWidth(0)
       .pointerHeight(0)
-      .fontSize(14)
+      .fontSize(12)
       .fontWeight(700)
-      .padding(5)
+      .height(16)
+      .padding(2)
       .build();
     await OBR.scene.local.addItems([label]);
-    badges.set(token.id, { id: label.id, tokenId: token.id, hp });
+    badges.set(token.id, { id: label.id, tokenId: token.id, hp, x, y, visible: token.visible });
   }
 }
