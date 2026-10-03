@@ -1,8 +1,10 @@
-import OBR, { buildBillboard, type Billboard, type Item, type Vector2 } from "@owlbear-rodeo/sdk";
+import OBR, { buildBillboard, buildLabel, type Billboard, type Item, type Label, type Vector2 } from "@owlbear-rodeo/sdk";
 import { HITS_KEY, ID, readHits, type Hits } from "./hits";
 
 type Counter = {
   id: string;
+  kind: "BILLBOARD" | "LABEL";
+  labelId?: string;
   tokenId: string;
   maximum: number;
   remaining: number;
@@ -11,6 +13,7 @@ type Counter = {
   x: number;
   y: number;
   width: number;
+  viewScale: number;
   visible: boolean;
 };
 
@@ -20,6 +23,7 @@ const IMAGE_WIDTH = 100 * IMAGE_SCALE;
 const GRID_HEIGHT = 40 * IMAGE_SCALE;
 const BAR_HEIGHT = 17 * IMAGE_SCALE;
 let latestItems: Item[] | null = null;
+let sceneItems: Item[] | null = null;
 let syncing = false;
 let initialized = false;
 let display: "GM" | "PLAYER" = "GM";
@@ -32,7 +36,7 @@ export function setCounterDisplay(role: "GM" | "PLAYER"): void {
 }
 
 export function tokenForCounter(itemId: string): string | undefined {
-  for (const counter of counters.values()) if (counter.id === itemId) return counter.tokenId;
+  for (const counter of counters.values()) if (counter.id === itemId || counter.labelId === itemId) return counter.tokenId;
   return undefined;
 }
 
@@ -54,12 +58,22 @@ export async function tokenAtGridPoint(point: Vector2): Promise<string | undefin
 export function clearCounters(): void {
   counters.clear();
   latestItems = null;
+  sceneItems = null;
   initialized = false;
 }
 
 export function scheduleCounterSync(items: Item[]): void {
+  sceneItems = items;
   latestItems = items;
   if (!syncing) void syncCounters();
+}
+
+export async function syncCounterViewport(): Promise<void> {
+  if (!sceneItems || ![...counters.values()].some((counter) => counter.kind === "LABEL" || counter.labelId)) return;
+  const viewScale = await OBR.viewport.getScale();
+  if ([...counters.values()].some((counter) => (counter.kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale)) {
+    scheduleCounterSync(sceneItems);
+  }
 }
 
 async function syncCounters(): Promise<void> {
@@ -89,19 +103,10 @@ function counterColor(hits: Hits): "green" | "yellow" | "red" {
   return "red";
 }
 
-function zeroLabelImageUrl(label: string): string {
-  const escaped = label.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
-  })[character]!);
-  const fontSize = Math.min(24, Math.floor(150 / Array.from(label).length));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40"><rect width="100" height="40" fill="#fff" fill-opacity="0.04"/><text x="50" y="28" text-anchor="middle" font-family="sans-serif" font-size="${fontSize}" font-weight="800" letter-spacing="1" fill="#dc2626" stroke="#000" stroke-width="1" paint-order="stroke">${escaped}</text></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
 function counterImageUrl(hits: Hits): string {
-  if (hits.remaining === 0) return zeroLabelImageUrl(hits.zeroLabel);
   if (display === "GM") {
-    return new URL(`/hit-grids/${counterColor(hits)}/${hits.remaining}.svg`, window.location.origin).href;
+    if (hits.remaining === 0) return new URL("/hit-grids/red/0.svg", window.location.origin).href;
+    return new URL(`/hit-grids/${counterColor(hits)}/${hits.remaining}-${hits.maximum}.svg`, window.location.origin).href;
   }
   const divisor = gcd(hits.remaining, hits.maximum);
   const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
@@ -110,6 +115,48 @@ function counterImageUrl(hits: Hits): string {
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
   return tokenWidth / sceneDpi * 100;
+}
+
+function makeZeroLabel(token: Item, hits: Hits, x: number, y: number, width: number, viewScale: number): Label {
+  return buildLabel()
+    .plainText(hits.zeroLabel)
+    .width(100)
+    .height(40)
+    .padding(0)
+    .fontFamily("sans-serif")
+    .fontSize(Math.min(24, Math.floor(150 / Array.from(hits.zeroLabel).length)))
+    .fontWeight(800)
+    .textAlign("CENTER")
+    .textAlignVertical("MIDDLE")
+    .fillColor("#dc2626")
+    .strokeColor("#000000")
+    .strokeWidth(1)
+    .backgroundOpacity(0)
+    .pointerWidth(0)
+    .pointerHeight(0)
+    .pointerDirection("DOWN")
+    .position({ x, y: y + hits.offsetPx / viewScale })
+    .scale({ x: width / 100, y: width / 100 })
+    .attachedTo(token.id)
+    .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY"])
+    .layer("TEXT")
+    .visible(token.visible)
+    .locked(true)
+    .disableHit(true)
+    .name("Token Hits Zero Label")
+    .description(display === "GM" ? `${hits.remaining} of ${hits.maximum} hits remaining` : "Token hits bar")
+    .metadata({ [`${ID}/counter`]: token.id })
+    .minViewScale(1)
+    .maxViewScale(1)
+    .build();
+}
+
+function updateZeroLabel(label: Label, hits: Hits, x: number, y: number, width: number, viewScale: number, visible: boolean): void {
+  label.text.plainText = hits.zeroLabel;
+  label.text.style.fontSize = Math.min(24, Math.floor(150 / Array.from(hits.zeroLabel).length));
+  label.scale = { x: width / 100, y: width / 100 };
+  label.position = { x, y: y + hits.offsetPx / viewScale };
+  label.visible = visible;
 }
 
 async function reconcile(items: Item[]): Promise<void> {
@@ -129,45 +176,79 @@ async function reconcile(items: Item[]): Promise<void> {
 
   const obsolete = [...counters.values()].filter((counter) => !wanted.has(counter.tokenId));
   if (obsolete.length) {
-    await OBR.scene.local.deleteItems(obsolete.map((counter) => counter.id));
+    await OBR.scene.local.deleteItems(obsolete.flatMap((counter) => [counter.id, ...(counter.labelId ? [counter.labelId] : [])]));
     for (const counter of obsolete) counters.delete(counter.tokenId);
   }
 
   if (wanted.size === 0) return;
   const sceneDpi = await OBR.scene.grid.getDpi();
+  const viewScale = await OBR.viewport.getScale();
   for (const { token, hits } of wanted.values()) {
     const bounds = await OBR.scene.items.getItemBounds([token.id]);
     const x = bounds.min.x + bounds.width / 2;
     const y = bounds.min.y;
     const width = counterSize(bounds.width, sceneDpi);
     const imageHeight = display === "GM" || hits.remaining === 0 ? GRID_HEIGHT : BAR_HEIGHT;
+    const kind = display === "PLAYER" && hits.remaining === 0 ? "LABEL" : "BILLBOARD";
     // The grid's bottom edge rests on the token's top edge at zero offset.
     const offsetY = imageHeight - hits.offsetPx * IMAGE_WIDTH / width;
-    const counter = counters.get(token.id);
+    let counter = counters.get(token.id);
+    if (counter && counter.kind !== kind) {
+      await OBR.scene.local.deleteItems([counter.id, ...(counter.labelId ? [counter.labelId] : [])]);
+      counters.delete(token.id);
+      counter = undefined;
+    }
     if (counter) {
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
           counter.zeroLabel !== hits.zeroLabel ||
           counter.offsetPx !== hits.offsetPx ||
           counter.x !== x || counter.y !== y || counter.width !== width ||
+          ((kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale) ||
           counter.visible !== token.visible) {
         await OBR.scene.local.updateItems([counter.id], (items) => {
           for (const item of items) {
-            if (item.type !== "BILLBOARD") continue;
-            const billboard = item as Billboard;
-            billboard.image.url = counterImageUrl(hits);
-            billboard.image.height = imageHeight;
-            billboard.grid.offset.y = offsetY;
-            billboard.scale = { x: width / 100, y: width / 100 };
-            billboard.position = { x, y };
-            billboard.visible = token.visible;
-            billboard.description = display === "GM"
-              ? `${hits.remaining} of ${hits.maximum} hits remaining`
-              : "Token hits bar";
+            if (item.type === "LABEL") {
+              updateZeroLabel(item as Label, hits, x, y, width, viewScale, token.visible);
+            } else if (item.type === "BILLBOARD") {
+              const billboard = item as Billboard;
+              billboard.image.url = counterImageUrl(hits);
+              billboard.image.height = imageHeight;
+              billboard.grid.offset.y = offsetY;
+              billboard.scale = { x: width / 100, y: width / 100 };
+              billboard.position = { x, y };
+              billboard.visible = token.visible;
+              billboard.description = display === "GM"
+                ? `${hits.remaining} of ${hits.maximum} hits remaining`
+                : "Token hits bar";
+            }
           }
         });
         Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, zeroLabel: hits.zeroLabel,
-          offsetPx: hits.offsetPx, x, y, width, visible: token.visible });
+          offsetPx: hits.offsetPx, x, y, width, viewScale, visible: token.visible });
       }
+      if (display === "GM" && hits.remaining === 0) {
+        if (counter.labelId) {
+          await OBR.scene.local.updateItems([counter.labelId], (items) => {
+            for (const item of items) if (item.type === "LABEL") updateZeroLabel(item as Label, hits, x, y, width, viewScale, token.visible);
+          });
+        } else {
+          const label = makeZeroLabel(token, hits, x, y, width, viewScale);
+          await OBR.scene.local.addItems([label]);
+          counter.labelId = label.id;
+        }
+      } else if (counter.labelId) {
+        await OBR.scene.local.deleteItems([counter.labelId]);
+        counter.labelId = undefined;
+      }
+      continue;
+    }
+    if (kind === "LABEL") {
+      const label = makeZeroLabel(token, hits, x, y, width, viewScale);
+      await OBR.scene.local.addItems([label]);
+      counters.set(token.id, {
+        id: label.id, kind, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
+        zeroLabel: hits.zeroLabel, offsetPx: hits.offsetPx, x, y, width, viewScale, visible: token.visible,
+      });
       continue;
     }
     const billboard = buildBillboard(
@@ -188,11 +269,12 @@ async function reconcile(items: Item[]): Promise<void> {
       .minViewScale(1)
       .maxViewScale(1)
       .build();
-    await OBR.scene.local.addItems([billboard]);
+    const label = hits.remaining === 0 ? makeZeroLabel(token, hits, x, y, width, viewScale) : undefined;
+    await OBR.scene.local.addItems(label ? [billboard, label] : [billboard]);
     counters.set(token.id, {
-      id: billboard.id, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
+      id: billboard.id, kind, labelId: label?.id, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
       zeroLabel: hits.zeroLabel,
-      offsetPx: hits.offsetPx,
+      offsetPx: hits.offsetPx, viewScale,
       x, y, width, visible: token.visible,
     });
   }

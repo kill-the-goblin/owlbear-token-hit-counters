@@ -40,6 +40,28 @@ for (const color of palette) {
 
 }
 
+for (let maximum = 1; maximum <= 10; maximum += 1) {
+  for (let remaining = 1; remaining <= maximum; remaining += 1) {
+    const colorId = remaining * 5 > maximum * 4 ? "green" : remaining * 2 > maximum ? "yellow" : "red";
+    const color = palette.find((entry) => entry.id === colorId);
+    if (!color) throw new Error(`Missing grid color: ${colorId}`);
+    const folder = new URL(`${colorId}/`, output);
+    const boxes = Array.from({ length: maximum }, (_, index) => {
+      const cell = fillOrder[index];
+      const x = 1 + (cell % 5) * 20;
+      const y = 1 + Math.floor(cell / 5) * 20;
+      return index < remaining
+        ? `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1"/>`
+        : `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="#000" fill-opacity="0.12" stroke="#fff" stroke-opacity="0.4" stroke-width="1"/>`;
+    }).join("");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40">${boxes}</svg>\n`;
+    await writeFile(new URL(`${remaining}-${maximum}.svg`, folder), svg);
+  }
+}
+
+const zeroOutline = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40"><rect x="1" y="1" width="98" height="38" rx="3" fill="#000" fill-opacity="0.08" stroke="#fff" stroke-opacity="0.5" stroke-width="1"/></svg>\n`;
+await writeFile(new URL("red/0.svg", output), zeroOutline);
+
 for (const id of ["green", "yellow", "red"]) {
   const color = palette.find((entry) => entry.id === id);
   if (!color) throw new Error(`Missing player bar color: ${id}`);

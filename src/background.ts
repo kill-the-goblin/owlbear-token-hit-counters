@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { clearCounters, scheduleCounterSync, setCounterDisplay, tokenAtGridPoint, tokenForCounter } from "./counters";
+import { clearCounters, scheduleCounterSync, setCounterDisplay, syncCounterViewport, tokenAtGridPoint, tokenForCounter } from "./counters";
 import { HITS_KEY, MENU_ID, MODE_ID, TOOL_ID, hitsData, readHits } from "./hits";
 
 let clickQueue = Promise.resolve();
@@ -34,7 +34,7 @@ OBR.onReady(async () => {
       icons: [{ icon: "/icon.svg", label: "Token Hit Counters", filter: {
         max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
       } }],
-      embed: { url: "/menu.html", height: 102 },
+      embed: { url: "/menu.html", height: 80 },
     });
 
     await OBR.tool.createMode({
@@ -62,4 +62,5 @@ OBR.onReady(async () => {
     else void OBR.scene.items.getItems().then(scheduleCounterSync);
   });
   if (await OBR.scene.isReady()) scheduleCounterSync(await OBR.scene.items.getItems());
+  setInterval(() => { void syncCounterViewport(); }, 200);
 });

@@ -23,16 +23,16 @@ export function readHits(value: unknown): Hits | null {
     data.remaining! <= data.maximum!)) return null;
   const offsetPx = data.offsetPx ?? 0;
   if (!Number.isSafeInteger(offsetPx) || offsetPx < -200 || offsetPx > 200) return null;
-  const zeroLabel = data.zeroLabel ?? DEFAULT_ZERO_LABEL;
+  const zeroLabel = (data.zeroLabel ?? DEFAULT_ZERO_LABEL);
   if (typeof zeroLabel !== "string" || !zeroLabel.trim() ||
       Array.from(zeroLabel).length > MAX_ZERO_LABEL_LENGTH || /[\x00-\x1f\x7f]/.test(zeroLabel)) return null;
-  return { version: 1, maximum: data.maximum!, remaining: data.remaining!, offsetPx, zeroLabel };
+  return { version: 1, maximum: data.maximum!, remaining: data.remaining!, offsetPx, zeroLabel: zeroLabel.toUpperCase() };
 }
 
 export function hitsData(maximum: number, remaining = maximum, settings?: Pick<Hits, "offsetPx" | "zeroLabel">): Hits | null {
   return maximum === 0 ? null : {
     version: 1, maximum, remaining,
     offsetPx: settings?.offsetPx ?? 0,
-    zeroLabel: settings?.zeroLabel ?? DEFAULT_ZERO_LABEL,
+    zeroLabel: (settings?.zeroLabel ?? DEFAULT_ZERO_LABEL).toUpperCase(),
   };
 }

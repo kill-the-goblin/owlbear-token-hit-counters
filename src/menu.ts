@@ -1,4 +1,4 @@
-import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
+import OBR, { type Item } from "@owlbear-rodeo/sdk";
 import { DEFAULT_ZERO_LABEL, HITS_KEY, MAX_ZERO_LABEL_LENGTH, hitsData, readHits, type Hits } from "./hits";
 import "./style.css";
 
@@ -126,7 +126,7 @@ function saveSettings(): void {
 function saveZeroLabel(): void {
   const id = tokenId;
   if (!id || !current) return;
-  const label = zeroLabel.value.trim() || DEFAULT_ZERO_LABEL;
+  const label = zeroLabel.value.trim().toUpperCase() || DEFAULT_ZERO_LABEL;
   if (Array.from(label).length > MAX_ZERO_LABEL_LENGTH || /[\x00-\x1f\x7f]/.test(label)) {
     showStatus(`Enter a single-line label of at most ${MAX_ZERO_LABEL_LENGTH} characters.`);
     zeroLabel.value = current.zeroLabel;
@@ -174,18 +174,7 @@ zeroLabel.addEventListener("keydown", (event) => {
   if (event.key === "Escape") { zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL; zeroLabel.blur(); }
 });
 
-function applyTheme(theme: Theme): void {
-  const root = document.documentElement;
-  root.style.setProperty("--obr-surface", theme.background.paper);
-  root.style.setProperty("--obr-input", theme.background.default);
-  root.style.setProperty("--obr-text", theme.text.primary);
-  root.style.setProperty("--obr-muted", theme.text.secondary);
-  root.style.colorScheme = theme.mode.toLowerCase();
-}
-
 OBR.onReady(async () => {
-  applyTheme(await OBR.theme.getTheme());
-  OBR.theme.onChange(applyTheme);
   OBR.scene.items.onChange((items) => {
     if (tokenId) render(items.find((item) => item.id === tokenId));
   });

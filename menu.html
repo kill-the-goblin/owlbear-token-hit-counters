@@ -4,15 +4,15 @@
   <body>
     <div id="app">
       <div class="controls">
-        <label for="remaining">Counters:</label>
+        <label for="remaining">Counters</label>
         <input id="remaining" type="text" inputmode="numeric" autocomplete="off" aria-label="Counters remaining" placeholder="0" />
-        <span>/</span>
+        <span>of</span>
         <input id="maximum" type="text" inputmode="numeric" autocomplete="off" aria-label="Maximum counters, 0 to 10" placeholder="0–10" />
       </div>
       <div class="controls">
-        <label for="offset">Offset (Y)</label>
-        <input id="offset" type="text" inputmode="numeric" autocomplete="off" title="Negative moves the grid up" />
-        <span>px</span>
+        <label for="offset">Offset</label>
+        <input id="offset" type="text" inputmode="numeric" autocomplete="off" aria-label="Vertical offset in screen pixels" title="Negative moves the grid up" />
+        <span class="zero-glyph" aria-hidden="true" title="At zero counters">&#9760;&#65038;</span>
         <input id="zero-label" type="text" maxlength="16" autocomplete="off" aria-label="Label shown at zero counters" placeholder="DEAD" />
       </div>
       <p id="status" role="status" hidden></p>
