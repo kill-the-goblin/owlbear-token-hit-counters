@@ -1,23 +1,26 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { clearBadges, scheduleBadgeSync, tokenForBadge } from "./badges";
-import { HP_KEY, MENU_ID, MODE_ID, TOOL_ID, hpData, readHp } from "./hp";
+import { clearCounters, scheduleCounterSync, tokenForCounter } from "./counters";
+import { HITS_KEY, MENU_ID, MODE_ID, TOOL_ID, hitsData, readHits } from "./hits";
 
 let clickQueue = Promise.resolve();
 
 function adjustOne(tokenId: string, delta: -1 | 1): void {
   clickQueue = clickQueue.then(async () => {
     if (await OBR.player.getRole() !== "GM") return;
-    await OBR.scene.items.updateItems((item) => item.id === tokenId && item.layer === "CHARACTER", (items) => {
-      for (const item of items) {
-        const hp = readHp(item.metadata[HP_KEY]);
-        if (hp !== null && (delta < 0 ? hp > 0 : hp < Number.MAX_SAFE_INTEGER)) {
-          item.metadata[HP_KEY] = hpData(hp + delta);
+    await OBR.scene.items.updateItems(
+      (item) => item.id === tokenId && item.layer === "CHARACTER",
+      (items) => {
+        for (const item of items) {
+          const hits = readHits(item.metadata[HITS_KEY]);
+          if (!hits) continue;
+          const remaining = Math.max(0, Math.min(hits.maximum, hits.remaining + delta));
+          if (remaining !== hits.remaining) item.metadata[HITS_KEY] = hitsData(hits.maximum, remaining);
         }
-      }
-    });
+      },
+    );
   }).catch((error: unknown) => {
-    console.error("Could not adjust token HP", error);
-    void OBR.notification.show("Could not adjust token HP.", "ERROR");
+    console.error("Could not adjust token hits", error);
+    void OBR.notification.show("Could not adjust token hits.", "ERROR");
   });
 }
 
@@ -26,17 +29,17 @@ OBR.onReady(async () => {
 
   await OBR.contextMenu.create({
     id: MENU_ID,
-    icons: [{ icon: "/icon.svg", label: "Token HP", filter: {
+    icons: [{ icon: "/icon.svg", label: "Token Hit Counters", filter: {
       max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
     } }],
-    embed: { url: "/menu.html", height: 46 },
+    embed: { url: "/menu.html", height: 62 },
   });
 
   await OBR.tool.createMode({
     id: MODE_ID,
-    icons: [{ icon: "/icon.svg", label: "Adjust HP" }],
+    icons: [{ icon: "/icon.svg", label: "Spend or restore a hit" }],
     onToolClick(_context, event) {
-      const tokenId = event.target ? tokenForBadge(event.target.id) : undefined;
+      const tokenId = event.target ? tokenForCounter(event.target.id) : undefined;
       if (!tokenId) return true;
       adjustOne(tokenId, event.shiftKey ? 1 : -1);
       return false;
@@ -44,15 +47,15 @@ OBR.onReady(async () => {
   });
   await OBR.tool.create({
     id: TOOL_ID,
-    icons: [{ icon: "/icon.svg", label: "Token HP" }],
+    icons: [{ icon: "/icon.svg", label: "Token Hit Counters" }],
     shortcut: "H",
     defaultMode: MODE_ID,
   });
 
-  OBR.scene.items.onChange(scheduleBadgeSync);
+  OBR.scene.items.onChange(scheduleCounterSync);
   OBR.scene.onReadyChange((ready) => {
-    if (!ready) clearBadges();
-    else void OBR.scene.items.getItems().then(scheduleBadgeSync);
+    if (!ready) clearCounters();
+    else void OBR.scene.items.getItems().then(scheduleCounterSync);
   });
-  if (await OBR.scene.isReady()) scheduleBadgeSync(await OBR.scene.items.getItems());
+  if (await OBR.scene.isReady()) scheduleCounterSync(await OBR.scene.items.getItems());
 });

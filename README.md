@@ -1,8 +1,10 @@
-# Owlbear Rodeo Token HP
+# Token Hit Counters
 
-A GM-only hit point tracker for character tokens. Select one token to open its **Token HP** menu section. Type current HP and leave the field to save, or use the **−** and **+** buttons to change it by one immediately. Empty HP removes the badge; values stop at zero.
+A GM-only hit counter for character tokens in Owlbear Rodeo. Select a token and enter **1–10** in the **Boxes** field to set its maximum and refill it. Enter **0** or clear the field to remove the counter.
 
-A red badge at the token's upper-right corner shows current HP to the GM. Press **H** to activate Token HP mode, then click a badge to subtract one HP or Shift-click to add one HP. Other map clicks retain Owlbear's normal selection behavior.
+The counter shows remaining boxes in a two-row, five-column grid at the top of the token. Unused positions are hidden. The grid's on-screen size stays constant as the map zoom changes, while resizing the token changes the grid's size. At zero, a `0` marker remains as a click target.
+
+Press **H** to activate Token Hit Counters mode. Click the grid to spend one hit, or Shift-click to restore one. The count stays between zero and its configured maximum. Only the GM sees the grid.
 
 ## Development
 
@@ -15,4 +17,4 @@ Load `http://localhost:11209/manifest.json` as a custom extension in Owlbear Rod
 
 ## Verification needed in Owlbear
 
-The build verifies the SDK types, but badge placement, local-item hit detection, the `H` shortcut, and GM-only display need a live test in a disposable scene.
+The build verifies SDK types. Test grid placement, fixed on-screen size through zoom, token resizing, click and Shift-click behavior, and GM-only visibility in a disposable scene.

@@ -1,13 +1,12 @@
 import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
-import { HP_KEY, hpData, readHp } from "./hp";
+import { HITS_KEY, hitsData, readHits, type Hits } from "./hits";
 import "./style.css";
 
-const input = document.querySelector<HTMLInputElement>("#hp")!;
-const minus = document.querySelector<HTMLButtonElement>("#minus")!;
-const plus = document.querySelector<HTMLButtonElement>("#plus")!;
+const input = document.querySelector<HTMLInputElement>("#maximum")!;
+const remaining = document.querySelector<HTMLElement>("#remaining")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 let tokenId: string | undefined;
-let current: number | null = null;
+let current: Hits | null = null;
 let queue = Promise.resolve();
 
 function showStatus(message: string): void {
@@ -15,18 +14,11 @@ function showStatus(message: string): void {
   status.hidden = !message;
 }
 
-function refreshButtons(): void {
-  const draft = input.value.trim();
-  const value = /^\d+$/.test(draft) && Number.isSafeInteger(Number(draft)) ? Number(draft) : current;
-  minus.disabled = !tokenId || value === null || value === 0;
-  plus.disabled = !tokenId;
-}
-
 function render(item: Item | undefined): void {
-  current = item ? readHp(item.metadata[HP_KEY]) : null;
-  if (document.activeElement !== input) input.value = current === null ? "" : String(current);
+  current = item ? readHits(item.metadata[HITS_KEY]) : null;
+  if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
   input.disabled = !item;
-  refreshButtons();
+  remaining.textContent = current ? `${current.remaining}/${current.maximum} left` : "No counter";
 }
 
 async function refresh(): Promise<void> {
@@ -35,60 +27,37 @@ async function refresh(): Promise<void> {
   render(item);
 }
 
-function update(change: (hp: number | null) => number | null): void {
+function saveDraft(): void {
   const id = tokenId;
-  if (!id) return;
+  if (!id || input.disabled) return;
+  const draft = input.value.trim();
+  if (draft && (!/^\d+$/.test(draft) || Number(draft) > 10)) {
+    showStatus("Enter 0–10 boxes.");
+    input.value = current ? String(current.maximum) : "";
+    return;
+  }
+  const maximum = draft === "" ? 0 : Number(draft);
+  if (maximum === (current?.maximum ?? 0) && (!current || current.remaining === maximum)) return;
   queue = queue.then(async () => {
     if (await OBR.player.getRole() !== "GM") return;
-    await OBR.scene.items.updateItems((item) => item.id === id && item.layer === "CHARACTER", (items) => {
-      for (const item of items) item.metadata[HP_KEY] = hpData(change(readHp(item.metadata[HP_KEY])));
-    });
+    await OBR.scene.items.updateItems(
+      (item) => item.id === id && item.layer === "CHARACTER",
+      (items) => {
+        for (const item of items) item.metadata[HITS_KEY] = hitsData(maximum);
+      },
+    );
     await refresh();
     showStatus("");
   }).catch((error: unknown) => {
-    showStatus(error instanceof Error ? error.message : "Could not save HP.");
+    showStatus(error instanceof Error ? error.message : "Could not save boxes.");
     void refresh();
   });
 }
 
-function saveDraft(): void {
-  if (!tokenId || input.disabled) return;
-  const draft = input.value.trim();
-  if (draft && (!/^\d+$/.test(draft) || !Number.isSafeInteger(Number(draft)))) {
-    showStatus("Enter a whole number of 0 or more.");
-    input.value = current === null ? "" : String(current);
-    return;
-  }
-  const next = draft === "" ? null : Number(draft);
-  if (next === current) return;
-  update(() => next);
-}
-
-for (const button of [minus, plus]) {
-  button.addEventListener("pointerdown", (event) => event.preventDefault());
-}
-minus.addEventListener("click", () => {
-  const draft = input.value.trim();
-  const base = /^\d+$/.test(draft) && Number.isSafeInteger(Number(draft)) ? Number(draft) : current;
-  if (base === null || base <= 0) return;
-  input.value = String(base - 1);
-  refreshButtons();
-  update(() => base - 1);
-});
-plus.addEventListener("click", () => {
-  const draft = input.value.trim();
-  const base = /^\d+$/.test(draft) && Number.isSafeInteger(Number(draft)) ? Number(draft) : current;
-  const next = base === null ? 1 : base + 1;
-  if (!Number.isSafeInteger(next)) return;
-  input.value = String(next);
-  refreshButtons();
-  update(() => next);
-});
 input.addEventListener("blur", saveDraft);
-input.addEventListener("input", refreshButtons);
 input.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); input.blur(); }
-  if (event.key === "Escape") { input.value = current === null ? "" : String(current); input.blur(); }
+  if (event.key === "Escape") { input.value = current ? String(current.maximum) : ""; input.blur(); }
 });
 
 function applyTheme(theme: Theme): void {

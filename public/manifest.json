@@ -1,9 +1,9 @@
 {
-  "name": "Token HP",
-  "version": "0.1.5",
+  "name": "Token Hit Counters",
+  "version": "0.1.6",
   "manifest_version": 1,
   "author": "Neal Enssle",
-  "description": "Track token HP in a quick menu and adjust it from a GM-only badge.",
+  "description": "Track remaining hits with a GM-only token grid.",
   "icon": "/icon.svg",
   "background_url": "/background.html"
 }

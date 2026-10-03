@@ -1,3 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Token HP">
-  <path d="M32 54 9 31a15 15 0 0 1 21-21l2 2 2-2a15 15 0 0 1 21 21Z" fill="currentColor"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Token Hit Counters">
+  <g fill="currentColor">
+    <rect x="5" y="12" width="9" height="15" rx="2"/><rect x="17" y="12" width="9" height="15" rx="2"/><rect x="29" y="12" width="9" height="15" rx="2"/><rect x="41" y="12" width="9" height="15" rx="2"/><rect x="53" y="12" width="9" height="15" rx="2"/>
+    <rect x="5" y="37" width="9" height="15" rx="2"/><rect x="17" y="37" width="9" height="15" rx="2"/><rect x="29" y="37" width="9" height="15" rx="2"/><rect x="41" y="37" width="9" height="15" rx="2"/><rect x="53" y="37" width="9" height="15" rx="2"/>
+  </g>
 </svg>

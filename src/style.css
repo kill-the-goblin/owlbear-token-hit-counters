@@ -1,13 +1,11 @@
 :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--obr-surface:#2b2d42;--obr-input:#202235;--obr-text:#f4f2fa;--obr-muted:#c1bed0;color:var(--obr-text);background:var(--obr-surface);color-scheme:dark;font-size:13px}
 *{box-sizing:border-box}
 body{margin:0}
-button,input{font:inherit}
-#app{padding:6px 7px;background:var(--obr-surface);height:100vh}
-.controls{display:flex;align-items:center;gap:5px}
-.controls button{width:28px;height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:color-mix(in srgb,var(--obr-surface) 87%,var(--obr-text));color:var(--obr-text);font-size:20px;line-height:1;cursor:pointer}
-.controls button:hover:not(:disabled){background:color-mix(in srgb,var(--obr-surface) 75%,var(--obr-text))}
-.controls button:disabled{opacity:.4;cursor:default}
-.controls input{width:64px;height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:var(--obr-input);color:var(--obr-text);text-align:center}
+#app{padding:7px;background:var(--obr-surface);height:100vh}
+.controls{display:flex;align-items:center;gap:8px;height:30px}
+.controls label{font-weight:600}
+.controls input{width:54px;height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:var(--obr-input);color:var(--obr-text);text-align:center;font:inherit}
 .controls input:focus{outline:2px solid #b42333;outline-offset:1px}
-#status{margin:5px 0 0;color:#ffb9b9;font-size:11px}
+#remaining{color:var(--obr-muted);white-space:nowrap}
+#status{margin:4px 0 0;color:#ffb9b9;font-size:11px}
 #status[hidden]{display:none}
