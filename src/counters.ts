@@ -111,6 +111,8 @@ async function reconcile(items: Item[]): Promise<void> {
     )
       .position({ x, y })
       .scale({ x: width / 100, y: width / 100 })
+      .attachedTo(token.id)
+      .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY"])
       .layer("TEXT")
       .visible(token.visible)
       .locked(true)
