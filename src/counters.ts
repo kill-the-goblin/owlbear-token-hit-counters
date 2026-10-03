@@ -84,7 +84,7 @@ function gcd(a: number, b: number): number {
 }
 
 function playerBarColor(hits: Hits): "green" | "yellow" | "red" {
-  if (hits.remaining * 10 > hits.maximum * 7) return "green";
+  if (hits.remaining * 5 > hits.maximum * 4) return "green";
   if (hits.remaining * 2 > hits.maximum) return "yellow";
   return "red";
 }
