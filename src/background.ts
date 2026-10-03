@@ -51,7 +51,7 @@ OBR.onReady(async () => {
     await OBR.tool.create({
       id: TOOL_ID,
       icons: [{ icon: "/icon.svg", label: "Token Hit Counters" }],
-      shortcut: "H",
+      shortcut: "C",
       defaultMode: MODE_ID,
     });
   }
