@@ -9,7 +9,7 @@ body{margin:0}
 .controls input{width:54px;text-align:center}
 #remaining,#maximum{width:54px}
 #offset{width:44px}
-.zero-glyph{flex:0 0 30px;text-align:center;font-size:28px;line-height:1;color:var(--obr-text)}
+.zero-glyph{flex:0 0 30px;text-align:center;font-size:30px;font-weight:700;line-height:1;color:#ff6b7a}
 #zero-label{flex:1;min-width:0;width:auto;text-align:center;padding:0 4px}
 .controls input:focus{outline:2px solid #b894f6;outline-offset:1px}
 #status{position:absolute;bottom:2px;left:7px;right:7px;margin:0;padding:2px 4px;border-radius:3px;background:#582a40;color:#fff;font-size:11px}

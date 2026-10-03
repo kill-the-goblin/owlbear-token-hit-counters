@@ -9,6 +9,7 @@ const zeroLabel = document.querySelector<HTMLInputElement>("#zero-label")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 let tokenId: string | undefined;
 let current: Hits | null = null;
+let pendingZero = false;
 let queue = Promise.resolve();
 
 function showStatus(message: string): void {
@@ -19,11 +20,11 @@ function showStatus(message: string): void {
 function render(item: Item | undefined): void {
   current = item ? readHits(item.metadata[HITS_KEY]) : null;
   if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
-  if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : "";
+  if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : pendingZero ? "0" : "";
   if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? 0);
   if (document.activeElement !== zeroLabel) zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL;
   input.disabled = !item;
-  remaining.disabled = !current;
+  remaining.disabled = !item;
   offset.disabled = !current;
   zeroLabel.disabled = !current;
 }
@@ -39,42 +40,58 @@ function saveDraft(): void {
   if (!id || input.disabled) return;
   const draft = input.value.trim();
   if (draft && (!/^\d+$/.test(draft) || Number(draft) > 10)) {
-    showStatus("Enter 0–10 boxes.");
+    showStatus("Enter a total from 0 to 10.");
     input.value = current ? String(current.maximum) : "";
     return;
   }
   const maximum = draft === "" ? 0 : Number(draft);
-  if (maximum === (current?.maximum ?? 0) && (!current || current.remaining === maximum)) return;
-  queue = queue.then(async () => {
-    if (await OBR.player.getRole() !== "GM") return;
-    await OBR.scene.items.updateItems(
-      (item) => item.id === id && item.layer === "CHARACTER",
-      (items) => {
-        for (const item of items) {
-          const previous = readHits(item.metadata[HITS_KEY]);
-          item.metadata[HITS_KEY] = hitsData(maximum, maximum, previous ?? undefined);
-        }
-      },
-    );
-    await refresh();
-    showStatus("");
-  }).catch((error: unknown) => {
-    showStatus(error instanceof Error ? error.message : "Could not save boxes.");
-    void refresh();
-  });
+  if (maximum === 0) {
+    pendingZero = false;
+    remaining.value = "";
+    if (current) queueCounts(id, 0, 0);
+    else showStatus("");
+    return;
+  }
+  const draftRemaining = remaining.value.trim();
+  if (draftRemaining && (!/^\d+$/.test(draftRemaining) || Number(draftRemaining) > 10 ||
+      (!current && Number(draftRemaining) > maximum))) {
+    showStatus(`Enter 0–${maximum} remaining.`);
+    return;
+  }
+  const desired = draftRemaining ? Number(draftRemaining) : current?.remaining ?? maximum;
+  const next = current ? Math.min(desired, maximum) : desired;
+  pendingZero = false;
+  remaining.value = String(next);
+  if (maximum !== current?.maximum || next !== current.remaining) queueCounts(id, maximum, next);
+  else showStatus("");
 }
 
 function saveRemaining(): void {
   const id = tokenId;
-  if (!id || !current) return;
+  if (!id || remaining.disabled) return;
   const draft = remaining.value.trim();
   const next = Number(draft);
-  if (!/^\d+$/.test(draft) || !Number.isSafeInteger(next) || next > current.maximum) {
-    showStatus(`Enter 0–${current.maximum} counters.`);
-    remaining.value = String(current.remaining);
+  const draftMaximum = input.value.trim();
+  const maximum = draftMaximum && /^\d+$/.test(draftMaximum) && Number(draftMaximum) <= 10
+    ? Number(draftMaximum) : current?.maximum ?? 0;
+  if (!/^\d+$/.test(draft) || !Number.isSafeInteger(next) || next > 10 || (maximum > 0 && next > maximum)) {
+    showStatus(`Enter 0–${maximum || 10} remaining.`);
+    remaining.value = current ? String(current.remaining) : "";
     return;
   }
-  if (next === current.remaining) return;
+  if (!current && maximum === 0 && next === 0) {
+    pendingZero = true;
+    showStatus("Enter a total to use 0 remaining.");
+    return;
+  }
+  const total = maximum || next;
+  pendingZero = false;
+  input.value = String(total);
+  if (current?.maximum !== total || current.remaining !== next) queueCounts(id, total, next);
+  else showStatus("");
+}
+
+function queueCounts(id: string, maximum: number, next: number): void {
   queue = queue.then(async () => {
     if (await OBR.player.getRole() !== "GM") return;
     await OBR.scene.items.updateItems(
@@ -82,7 +99,7 @@ function saveRemaining(): void {
       (items) => {
         for (const item of items) {
           const hits = readHits(item.metadata[HITS_KEY]);
-          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, Math.min(next, hits.maximum), hits);
+          item.metadata[HITS_KEY] = hitsData(maximum, next, hits ?? undefined);
         }
       },
     );
@@ -154,11 +171,13 @@ function saveZeroLabel(): void {
 }
 
 input.addEventListener("blur", saveDraft);
+input.addEventListener("focus", () => input.select());
 input.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); input.blur(); }
   if (event.key === "Escape") { input.value = current ? String(current.maximum) : ""; input.blur(); }
 });
 remaining.addEventListener("blur", saveRemaining);
+remaining.addEventListener("focus", () => remaining.select());
 remaining.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); remaining.blur(); }
   if (event.key === "Escape") { remaining.value = current ? String(current.remaining) : ""; remaining.blur(); }
@@ -187,6 +206,7 @@ async function refreshSelection(): Promise<void> {
   const nextId = selected?.length === 1 ? selected[0] : undefined;
   if (nextId === tokenId) return;
   tokenId = nextId;
+  pendingZero = false;
   showStatus("");
   await refresh();
 }
