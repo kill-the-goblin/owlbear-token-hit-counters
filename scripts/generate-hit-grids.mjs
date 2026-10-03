@@ -12,6 +12,16 @@ function gcd(a, b) {
   return a;
 }
 
+function boxPosition(maximum, index) {
+  if (maximum <= 5) return { x: 1 + (5 - maximum) * 10 + index * 20, y: 21 };
+  const bottomCount = Math.ceil(maximum / 2);
+  const topCount = maximum - bottomCount;
+  const bottomRow = index < bottomCount;
+  const rowCount = bottomRow ? bottomCount : topCount;
+  const column = bottomRow ? index : index - bottomCount;
+  return { x: 1 + (5 - rowCount) * 10 + column * 20, y: bottomRow ? 21 : 1 };
+}
+
 const barRatios = new Map();
 for (let maximum = 1; maximum <= 10; maximum += 1) {
   for (let remaining = 1; remaining <= maximum; remaining += 1) {
@@ -47,9 +57,7 @@ for (let maximum = 1; maximum <= 10; maximum += 1) {
     if (!color) throw new Error(`Missing grid color: ${colorId}`);
     const folder = new URL(`${colorId}/`, output);
     const boxes = Array.from({ length: maximum }, (_, index) => {
-      const cell = fillOrder[index];
-      const x = 1 + (maximum < 5 ? (5 - maximum) * 10 : 0) + (cell % 5) * 20;
-      const y = 1 + Math.floor(cell / 5) * 20;
+      const { x, y } = boxPosition(maximum, index);
       return index < remaining
         ? `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1"/>`
         : `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="#000" fill-opacity="0.12" stroke="#fff" stroke-opacity="0.4" stroke-width="1"/>`;
