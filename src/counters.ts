@@ -83,15 +83,21 @@ function gcd(a: number, b: number): number {
   return a;
 }
 
+function playerBarColor(hits: Hits): "green" | "yellow" | "red" {
+  if (hits.remaining * 10 > hits.maximum * 7) return "green";
+  if (hits.remaining * 2 > hits.maximum) return "yellow";
+  return "red";
+}
+
 function counterImageUrl(hits: Hits): string {
   if (display === "GM") {
     const name = hits.remaining === 0 ? "dead" : String(hits.remaining);
     return new URL(`/hit-grids/${hits.color}/${name}.svg`, window.location.origin).href;
   }
-  if (hits.remaining === 0) return new URL(`/player-bars/${hits.color}/dead.svg`, window.location.origin).href;
+  if (hits.remaining === 0) return new URL("/player-bars/red/dead-large.svg", window.location.origin).href;
   const divisor = gcd(hits.remaining, hits.maximum);
   const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
-  return new URL(`/player-bars/${hits.color}/${fraction}.svg`, window.location.origin).href;
+  return new URL(`/player-bars/${playerBarColor(hits)}/${fraction}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
@@ -126,7 +132,7 @@ async function reconcile(items: Item[]): Promise<void> {
     const x = bounds.min.x + bounds.width / 2;
     const y = bounds.min.y;
     const width = counterSize(bounds.width, sceneDpi);
-    const imageHeight = display === "GM" ? GRID_HEIGHT : BAR_HEIGHT;
+    const imageHeight = display === "GM" || hits.remaining === 0 ? GRID_HEIGHT : BAR_HEIGHT;
     // The grid's bottom edge rests on the token's top edge at zero offset.
     const offsetY = imageHeight - hits.offsetPx * IMAGE_WIDTH / width;
     const counter = counters.get(token.id);
@@ -140,6 +146,7 @@ async function reconcile(items: Item[]): Promise<void> {
             if (item.type !== "BILLBOARD") continue;
             const billboard = item as Billboard;
             billboard.image.url = counterImageUrl(hits);
+            billboard.image.height = imageHeight;
             billboard.grid.offset.y = offsetY;
             billboard.scale = { x: width / 100, y: width / 100 };
             billboard.position = { x, y };

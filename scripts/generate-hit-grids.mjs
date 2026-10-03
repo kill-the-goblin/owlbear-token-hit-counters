@@ -22,9 +22,7 @@ for (let maximum = 1; maximum <= 10; maximum += 1) {
 
 for (const color of palette) {
   const folder = new URL(`${color.id}/`, output);
-  const barFolder = new URL(`${color.id}/`, barOutput);
   await mkdir(folder, { recursive: true });
-  await mkdir(barFolder, { recursive: true });
   for (let remaining = 0; remaining <= 10; remaining += 1) {
     const boxes = Array.from({ length: remaining }, (_, index) => {
       const cell = fillOrder[index];
@@ -40,11 +38,21 @@ for (const color of palette) {
     await writeFile(new URL(`${remaining === 0 ? "dead" : remaining}.svg`, folder), svg);
   }
 
+}
+
+for (const id of ["green", "yellow", "red"]) {
+  const color = palette.find((entry) => entry.id === id);
+  if (!color) throw new Error(`Missing player bar color: ${id}`);
+  const barFolder = new URL(`${id}/`, barOutput);
+  await mkdir(barFolder, { recursive: true });
   for (const [fraction, ratio] of barRatios) {
     const fillWidth = (98 * ratio).toFixed(3);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="136" viewBox="0 0 100 17"><defs><clipPath id="bar"><rect x="1" y="1" width="98" height="15" rx="2"/></clipPath></defs><rect x="1" y="1" width="98" height="15" rx="2" fill="${color.fill}" fill-opacity="0.12"/><rect x="1" y="1" width="${fillWidth}" height="15" fill="${color.fill}" clip-path="url(#bar)"/><rect x="1" y="1" width="98" height="15" rx="2" fill="none" stroke="${color.stroke}" stroke-width="1"/></svg>\n`;
     await writeFile(new URL(`${fraction}.svg`, barFolder), svg);
   }
-  const deadBar = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="136" viewBox="0 0 100 17"><rect x="1" y="1" width="98" height="15" rx="2" fill="#fff" fill-opacity="0.04" stroke="${color.stroke}" stroke-width="1"/><text x="50" y="13" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="800" letter-spacing="1" fill="${color.fill}" stroke="${color.stroke}" stroke-width="0.5" paint-order="stroke">DEAD</text></svg>\n`;
-  await writeFile(new URL("dead.svg", barFolder), deadBar);
 }
+
+const red = palette.find((entry) => entry.id === "red");
+if (!red) throw new Error("Missing red player bar color");
+const deadBar = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40"><rect width="100" height="40" fill="#fff" fill-opacity="0.04"/><text x="50" y="28" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="800" letter-spacing="1" fill="${red.fill}" stroke="#000" stroke-width="1" paint-order="stroke">DEAD</text></svg>\n`;
+await writeFile(new URL("red/dead-large.svg", barOutput), deadBar);
