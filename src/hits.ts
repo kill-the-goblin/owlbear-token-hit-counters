@@ -1,5 +1,3 @@
-import palette from "./palette.json";
-
 export const ID = "com.nealenssle.obr-token-hits";
 export const HITS_KEY = `${ID}/hits`;
 export const MENU_ID = `${ID}/menu`;
@@ -11,15 +9,7 @@ export type Hits = {
   maximum: number;
   remaining: number;
   offsetPx: number;
-  color: string;
 };
-
-export const HIT_COLORS = palette;
-export const DEFAULT_COLOR = "red";
-
-export function isHitColor(value: unknown): value is string {
-  return typeof value === "string" && palette.some((color) => color.id === value);
-}
 
 export function readHits(value: unknown): Hits | null {
   if (!value || typeof value !== "object") return null;
@@ -29,15 +19,13 @@ export function readHits(value: unknown): Hits | null {
     data.maximum! <= 10 && data.remaining! >= 0 &&
     data.remaining! <= data.maximum!)) return null;
   const offsetPx = data.offsetPx ?? 0;
-  const color = data.color ?? DEFAULT_COLOR;
-  if (!Number.isSafeInteger(offsetPx) || offsetPx < -200 || offsetPx > 200 || !isHitColor(color)) return null;
-  return { version: 1, maximum: data.maximum!, remaining: data.remaining!, offsetPx, color };
+  if (!Number.isSafeInteger(offsetPx) || offsetPx < -200 || offsetPx > 200) return null;
+  return { version: 1, maximum: data.maximum!, remaining: data.remaining!, offsetPx };
 }
 
-export function hitsData(maximum: number, remaining = maximum, settings?: Pick<Hits, "offsetPx" | "color">): Hits | null {
+export function hitsData(maximum: number, remaining = maximum, settings?: Pick<Hits, "offsetPx">): Hits | null {
   return maximum === 0 ? null : {
     version: 1, maximum, remaining,
     offsetPx: settings?.offsetPx ?? 0,
-    color: settings?.color ?? DEFAULT_COLOR,
   };
 }

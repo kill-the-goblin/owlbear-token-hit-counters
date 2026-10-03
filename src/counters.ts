@@ -6,7 +6,6 @@ type Counter = {
   tokenId: string;
   maximum: number;
   remaining: number;
-  color: string;
   offsetPx: number;
   x: number;
   y: number;
@@ -83,7 +82,7 @@ function gcd(a: number, b: number): number {
   return a;
 }
 
-function playerBarColor(hits: Hits): "green" | "yellow" | "red" {
+function counterColor(hits: Hits): "green" | "yellow" | "red" {
   if (hits.remaining * 5 > hits.maximum * 4) return "green";
   if (hits.remaining * 2 > hits.maximum) return "yellow";
   return "red";
@@ -92,12 +91,12 @@ function playerBarColor(hits: Hits): "green" | "yellow" | "red" {
 function counterImageUrl(hits: Hits): string {
   if (display === "GM") {
     const name = hits.remaining === 0 ? "dead" : String(hits.remaining);
-    return new URL(`/hit-grids/${hits.color}/${name}.svg`, window.location.origin).href;
+    return new URL(`/hit-grids/${counterColor(hits)}/${name}.svg`, window.location.origin).href;
   }
   if (hits.remaining === 0) return new URL("/player-bars/red/dead-large.svg", window.location.origin).href;
   const divisor = gcd(hits.remaining, hits.maximum);
   const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
-  return new URL(`/player-bars/${playerBarColor(hits)}/${fraction}.svg`, window.location.origin).href;
+  return new URL(`/player-bars/${counterColor(hits)}/${fraction}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
@@ -138,7 +137,7 @@ async function reconcile(items: Item[]): Promise<void> {
     const counter = counters.get(token.id);
     if (counter) {
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
-          counter.color !== hits.color || counter.offsetPx !== hits.offsetPx ||
+          counter.offsetPx !== hits.offsetPx ||
           counter.x !== x || counter.y !== y || counter.width !== width ||
           counter.visible !== token.visible) {
         await OBR.scene.local.updateItems([counter.id], (items) => {
@@ -156,7 +155,7 @@ async function reconcile(items: Item[]): Promise<void> {
               : "Token hits bar";
           }
         });
-        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, color: hits.color,
+        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining,
           offsetPx: hits.offsetPx, x, y, width, visible: token.visible });
       }
       continue;
@@ -182,7 +181,7 @@ async function reconcile(items: Item[]): Promise<void> {
     await OBR.scene.local.addItems([billboard]);
     counters.set(token.id, {
       id: billboard.id, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
-      color: hits.color, offsetPx: hits.offsetPx,
+      offsetPx: hits.offsetPx,
       x, y, width, visible: token.visible,
     });
   }

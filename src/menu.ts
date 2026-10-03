@@ -1,17 +1,14 @@
 import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
-import { DEFAULT_COLOR, HIT_COLORS, HITS_KEY, hitsData, isHitColor, readHits, type Hits } from "./hits";
+import { HITS_KEY, hitsData, readHits, type Hits } from "./hits";
 import "./style.css";
 
 const input = document.querySelector<HTMLInputElement>("#maximum")!;
+const remaining = document.querySelector<HTMLInputElement>("#remaining")!;
 const offset = document.querySelector<HTMLInputElement>("#offset")!;
-const color = document.querySelector<HTMLSelectElement>("#color")!;
-const remaining = document.querySelector<HTMLElement>("#remaining")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 let tokenId: string | undefined;
 let current: Hits | null = null;
 let queue = Promise.resolve();
-
-for (const choice of HIT_COLORS) color.add(new Option(choice.label, choice.id));
 
 function showStatus(message: string): void {
   status.textContent = message;
@@ -21,12 +18,11 @@ function showStatus(message: string): void {
 function render(item: Item | undefined): void {
   current = item ? readHits(item.metadata[HITS_KEY]) : null;
   if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
+  if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : "";
   if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? 0);
-  if (document.activeElement !== color) color.value = current?.color ?? DEFAULT_COLOR;
   input.disabled = !item;
+  remaining.disabled = !current;
   offset.disabled = !current;
-  color.disabled = !current;
-  remaining.textContent = current ? `${current.remaining}/${current.maximum} left` : "No counter";
 }
 
 async function refresh(): Promise<void> {
@@ -65,6 +61,36 @@ function saveDraft(): void {
   });
 }
 
+function saveRemaining(): void {
+  const id = tokenId;
+  if (!id || !current) return;
+  const draft = remaining.value.trim();
+  const next = Number(draft);
+  if (!/^\d+$/.test(draft) || !Number.isSafeInteger(next) || next > current.maximum) {
+    showStatus(`Enter 0–${current.maximum} counters.`);
+    remaining.value = String(current.remaining);
+    return;
+  }
+  if (next === current.remaining) return;
+  queue = queue.then(async () => {
+    if (await OBR.player.getRole() !== "GM") return;
+    await OBR.scene.items.updateItems(
+      (item) => item.id === id && item.layer === "CHARACTER",
+      (items) => {
+        for (const item of items) {
+          const hits = readHits(item.metadata[HITS_KEY]);
+          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, Math.min(next, hits.maximum), hits);
+        }
+      },
+    );
+    await refresh();
+    showStatus("");
+  }).catch((error: unknown) => {
+    showStatus(error instanceof Error ? error.message : "Could not save counters.");
+    void refresh();
+  });
+}
+
 function saveSettings(): void {
   const id = tokenId;
   if (!id || !current) return;
@@ -74,9 +100,7 @@ function saveSettings(): void {
     offset.value = String(current.offsetPx);
     return;
   }
-  const selectedColor = color.value;
-  if (!isHitColor(selectedColor)) return;
-  if (offsetPx === current.offsetPx && selectedColor === current.color) return;
+  if (offsetPx === current.offsetPx) return;
   queue = queue.then(async () => {
     if (await OBR.player.getRole() !== "GM") return;
     await OBR.scene.items.updateItems(
@@ -84,9 +108,7 @@ function saveSettings(): void {
       (items) => {
         for (const item of items) {
           const hits = readHits(item.metadata[HITS_KEY]);
-          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, {
-            offsetPx, color: selectedColor,
-          });
+          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, { offsetPx });
         }
       },
     );
@@ -103,12 +125,16 @@ input.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); input.blur(); }
   if (event.key === "Escape") { input.value = current ? String(current.maximum) : ""; input.blur(); }
 });
+remaining.addEventListener("blur", saveRemaining);
+remaining.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); remaining.blur(); }
+  if (event.key === "Escape") { remaining.value = current ? String(current.remaining) : ""; remaining.blur(); }
+});
 offset.addEventListener("blur", saveSettings);
 offset.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); offset.blur(); }
   if (event.key === "Escape") { offset.value = String(current?.offsetPx ?? 0); offset.blur(); }
 });
-color.addEventListener("change", saveSettings);
 
 function applyTheme(theme: Theme): void {
   const root = document.documentElement;

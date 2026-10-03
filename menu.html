@@ -4,17 +4,15 @@
   <body>
     <div id="app">
       <div class="controls">
-        <label for="maximum">Boxes</label>
-        <input id="maximum" type="text" inputmode="numeric" autocomplete="off" aria-label="Total hit boxes, 0 to 10" placeholder="0–10" />
-        <span id="remaining">No counter</span>
+        <label for="remaining">Counters:</label>
+        <input id="remaining" type="text" inputmode="numeric" autocomplete="off" aria-label="Counters remaining" placeholder="0" />
+        <span>/</span>
+        <input id="maximum" type="text" inputmode="numeric" autocomplete="off" aria-label="Maximum counters, 0 to 10" placeholder="0–10" />
       </div>
       <div class="controls">
-        <label for="offset">Offset Y (px)</label>
+        <label for="offset">Offset (Y)</label>
         <input id="offset" type="number" min="-200" max="200" step="1" title="Negative moves the grid up" />
-      </div>
-      <div class="controls">
-        <label for="color">Color</label>
-        <select id="color"></select>
+        <span>px</span>
       </div>
       <small>Negative offset moves the grid up.</small>
       <p id="status" role="status" hidden></p>
