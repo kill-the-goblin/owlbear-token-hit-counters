@@ -20,6 +20,6 @@ for (const color of palette) {
       : "";
     // The SVG rasterizes at 8x its logical size so large tokens stay sharp.
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40">${boxes}${dead}</svg>\n`;
-    await writeFile(new URL(`${remaining}.svg`, folder), svg);
+    await writeFile(new URL(`${remaining === 0 ? "dead" : remaining}.svg`, folder), svg);
   }
 }

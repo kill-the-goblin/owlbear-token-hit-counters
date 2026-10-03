@@ -70,7 +70,8 @@ async function syncCounters(): Promise<void> {
 }
 
 function counterImageUrl(remaining: number, color: string): string {
-  return new URL(`/hit-grids/${color}/${remaining}.svg`, window.location.origin).href;
+  const name = remaining === 0 ? "dead" : String(remaining);
+  return new URL(`/hit-grids/${color}/${name}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
