@@ -48,7 +48,7 @@ for (let maximum = 1; maximum <= 10; maximum += 1) {
     const folder = new URL(`${colorId}/`, output);
     const boxes = Array.from({ length: maximum }, (_, index) => {
       const cell = fillOrder[index];
-      const x = 1 + (cell % 5) * 20;
+      const x = 1 + (maximum < 5 ? (5 - maximum) * 10 : 0) + (cell % 5) * 20;
       const y = 1 + Math.floor(cell / 5) * 20;
       return index < remaining
         ? `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1"/>`
@@ -69,7 +69,7 @@ for (const id of ["green", "yellow", "red"]) {
   await mkdir(barFolder, { recursive: true });
   for (const [fraction, ratio] of barRatios) {
     const fillWidth = (98 * ratio).toFixed(3);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="136" viewBox="0 0 100 17"><defs><clipPath id="bar"><rect x="1" y="1" width="98" height="15" rx="2"/></clipPath></defs><rect x="1" y="1" width="98" height="15" rx="2" fill="${color.fill}" fill-opacity="0.12"/><rect x="1" y="1" width="${fillWidth}" height="15" fill="${color.fill}" clip-path="url(#bar)"/><rect x="1" y="1" width="98" height="15" rx="2" fill="none" stroke="${color.stroke}" stroke-width="1"/></svg>\n`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="152" viewBox="0 0 100 19"><defs><clipPath id="bar"><rect x="1" y="1" width="98" height="17" rx="2"/></clipPath></defs><rect x="1" y="1" width="98" height="17" rx="2" fill="${color.fill}" fill-opacity="0.12"/><rect x="1" y="1" width="${fillWidth}" height="17" fill="${color.fill}" clip-path="url(#bar)"/><rect x="1" y="1" width="98" height="17" rx="2" fill="none" stroke="${color.stroke}" stroke-width="1"/></svg>\n`;
     await writeFile(new URL(`${fraction}.svg`, barFolder), svg);
   }
 }
