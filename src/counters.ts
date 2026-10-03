@@ -15,6 +15,9 @@ type Counter = {
 };
 
 const counters = new Map<string, Counter>();
+const IMAGE_SCALE = 8;
+const IMAGE_WIDTH = 100 * IMAGE_SCALE;
+const IMAGE_HEIGHT = 40 * IMAGE_SCALE;
 let latestItems: Item[] | null = null;
 let syncing = false;
 let initialized = false;
@@ -56,7 +59,7 @@ function counterImageUrl(remaining: number, color: string): string {
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
-  return tokenWidth / sceneDpi * 80;
+  return tokenWidth / sceneDpi * 100;
 }
 
 async function reconcile(items: Item[]): Promise<void> {
@@ -87,7 +90,8 @@ async function reconcile(items: Item[]): Promise<void> {
     const x = bounds.min.x + bounds.width / 2;
     const y = bounds.min.y;
     const width = counterSize(bounds.width, sceneDpi);
-    const offsetY = -hits.offsetPx * 100 / width;
+    // The grid's bottom edge rests on the token's top edge at zero offset.
+    const offsetY = IMAGE_HEIGHT - hits.offsetPx * IMAGE_WIDTH / width;
     const counter = counters.get(token.id);
     if (counter) {
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
@@ -112,8 +116,8 @@ async function reconcile(items: Item[]): Promise<void> {
       continue;
     }
     const billboard = buildBillboard(
-      { width: 100, height: 40, mime: "image/svg+xml", url: counterImageUrl(hits.remaining, hits.color) },
-      { dpi: sceneDpi, offset: { x: 50, y: offsetY } },
+      { width: IMAGE_WIDTH, height: IMAGE_HEIGHT, mime: "image/svg+xml", url: counterImageUrl(hits.remaining, hits.color) },
+      { dpi: sceneDpi * IMAGE_SCALE, offset: { x: IMAGE_WIDTH / 2, y: offsetY } },
     )
       .position({ x, y })
       .scale({ x: width / 100, y: width / 100 })

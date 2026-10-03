@@ -6,5 +6,7 @@
   { "id": "cyan", "label": "Cyan", "fill": "#0891b2", "stroke": "#155e75" },
   { "id": "blue", "label": "Blue", "fill": "#2563eb", "stroke": "#1e40af" },
   { "id": "purple", "label": "Purple", "fill": "#9333ea", "stroke": "#6b21a8" },
-  { "id": "pink", "label": "Pink", "fill": "#db2777", "stroke": "#9d174d" }
+  { "id": "pink", "label": "Pink", "fill": "#db2777", "stroke": "#9d174d" },
+  { "id": "white", "label": "White", "fill": "#f8fafc", "stroke": "#334155" },
+  { "id": "black", "label": "Black", "fill": "#111827", "stroke": "#f8fafc" }
 ]
