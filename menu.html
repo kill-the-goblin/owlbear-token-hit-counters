@@ -11,10 +11,10 @@
       </div>
       <div class="controls">
         <label for="offset">Offset (Y)</label>
-        <input id="offset" type="number" min="-200" max="200" step="1" title="Negative moves the grid up" />
+        <input id="offset" type="text" inputmode="numeric" autocomplete="off" title="Negative moves the grid up" />
         <span>px</span>
+        <input id="zero-label" type="text" maxlength="16" autocomplete="off" aria-label="Label shown at zero counters" placeholder="DEAD" />
       </div>
-      <small>Negative offset moves the grid up.</small>
       <p id="status" role="status" hidden></p>
     </div>
     <script type="module" src="/src/menu.ts"></script>

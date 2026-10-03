@@ -34,7 +34,7 @@ OBR.onReady(async () => {
       icons: [{ icon: "/icon.svg", label: "Token Hit Counters", filter: {
         max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
       } }],
-      embed: { url: "/menu.html", height: 140 },
+      embed: { url: "/menu.html", height: 102 },
     });
 
     await OBR.tool.createMode({

@@ -1,10 +1,11 @@
 import OBR, { type Item, type Theme } from "@owlbear-rodeo/sdk";
-import { HITS_KEY, hitsData, readHits, type Hits } from "./hits";
+import { DEFAULT_ZERO_LABEL, HITS_KEY, MAX_ZERO_LABEL_LENGTH, hitsData, readHits, type Hits } from "./hits";
 import "./style.css";
 
 const input = document.querySelector<HTMLInputElement>("#maximum")!;
 const remaining = document.querySelector<HTMLInputElement>("#remaining")!;
 const offset = document.querySelector<HTMLInputElement>("#offset")!;
+const zeroLabel = document.querySelector<HTMLInputElement>("#zero-label")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 let tokenId: string | undefined;
 let current: Hits | null = null;
@@ -20,9 +21,11 @@ function render(item: Item | undefined): void {
   if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
   if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : "";
   if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? 0);
+  if (document.activeElement !== zeroLabel) zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL;
   input.disabled = !item;
   remaining.disabled = !current;
   offset.disabled = !current;
+  zeroLabel.disabled = !current;
 }
 
 async function refresh(): Promise<void> {
@@ -108,7 +111,7 @@ function saveSettings(): void {
       (items) => {
         for (const item of items) {
           const hits = readHits(item.metadata[HITS_KEY]);
-          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, { offsetPx });
+          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, { ...hits, offsetPx });
         }
       },
     );
@@ -116,6 +119,36 @@ function saveSettings(): void {
     showStatus("");
   }).catch((error: unknown) => {
     showStatus(error instanceof Error ? error.message : "Could not save settings.");
+    void refresh();
+  });
+}
+
+function saveZeroLabel(): void {
+  const id = tokenId;
+  if (!id || !current) return;
+  const label = zeroLabel.value.trim() || DEFAULT_ZERO_LABEL;
+  if (Array.from(label).length > MAX_ZERO_LABEL_LENGTH || /[\x00-\x1f\x7f]/.test(label)) {
+    showStatus(`Enter a single-line label of at most ${MAX_ZERO_LABEL_LENGTH} characters.`);
+    zeroLabel.value = current.zeroLabel;
+    return;
+  }
+  zeroLabel.value = label;
+  if (label === current.zeroLabel) return;
+  queue = queue.then(async () => {
+    if (await OBR.player.getRole() !== "GM") return;
+    await OBR.scene.items.updateItems(
+      (item) => item.id === id && item.layer === "CHARACTER",
+      (items) => {
+        for (const item of items) {
+          const hits = readHits(item.metadata[HITS_KEY]);
+          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, { ...hits, zeroLabel: label });
+        }
+      },
+    );
+    await refresh();
+    showStatus("");
+  }).catch((error: unknown) => {
+    showStatus(error instanceof Error ? error.message : "Could not save zero label.");
     void refresh();
   });
 }
@@ -134,6 +167,11 @@ offset.addEventListener("blur", saveSettings);
 offset.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); offset.blur(); }
   if (event.key === "Escape") { offset.value = String(current?.offsetPx ?? 0); offset.blur(); }
+});
+zeroLabel.addEventListener("blur", saveZeroLabel);
+zeroLabel.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); zeroLabel.blur(); }
+  if (event.key === "Escape") { zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL; zeroLabel.blur(); }
 });
 
 function applyTheme(theme: Theme): void {

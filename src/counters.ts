@@ -6,6 +6,7 @@ type Counter = {
   tokenId: string;
   maximum: number;
   remaining: number;
+  zeroLabel: string;
   offsetPx: number;
   x: number;
   y: number;
@@ -88,12 +89,20 @@ function counterColor(hits: Hits): "green" | "yellow" | "red" {
   return "red";
 }
 
+function zeroLabelImageUrl(label: string): string {
+  const escaped = label.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;",
+  })[character]!);
+  const fontSize = Math.min(24, Math.floor(150 / Array.from(label).length));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40"><rect width="100" height="40" fill="#fff" fill-opacity="0.04"/><text x="50" y="28" text-anchor="middle" font-family="sans-serif" font-size="${fontSize}" font-weight="800" letter-spacing="1" fill="#dc2626" stroke="#000" stroke-width="1" paint-order="stroke">${escaped}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 function counterImageUrl(hits: Hits): string {
+  if (hits.remaining === 0) return zeroLabelImageUrl(hits.zeroLabel);
   if (display === "GM") {
-    const name = hits.remaining === 0 ? "dead" : String(hits.remaining);
-    return new URL(`/hit-grids/${counterColor(hits)}/${name}.svg`, window.location.origin).href;
+    return new URL(`/hit-grids/${counterColor(hits)}/${hits.remaining}.svg`, window.location.origin).href;
   }
-  if (hits.remaining === 0) return new URL("/player-bars/red/dead-large.svg", window.location.origin).href;
   const divisor = gcd(hits.remaining, hits.maximum);
   const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
   return new URL(`/player-bars/${counterColor(hits)}/${fraction}.svg`, window.location.origin).href;
@@ -137,6 +146,7 @@ async function reconcile(items: Item[]): Promise<void> {
     const counter = counters.get(token.id);
     if (counter) {
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
+          counter.zeroLabel !== hits.zeroLabel ||
           counter.offsetPx !== hits.offsetPx ||
           counter.x !== x || counter.y !== y || counter.width !== width ||
           counter.visible !== token.visible) {
@@ -155,7 +165,7 @@ async function reconcile(items: Item[]): Promise<void> {
               : "Token hits bar";
           }
         });
-        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining,
+        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, zeroLabel: hits.zeroLabel,
           offsetPx: hits.offsetPx, x, y, width, visible: token.visible });
       }
       continue;
@@ -181,6 +191,7 @@ async function reconcile(items: Item[]): Promise<void> {
     await OBR.scene.local.addItems([billboard]);
     counters.set(token.id, {
       id: billboard.id, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
+      zeroLabel: hits.zeroLabel,
       offsetPx: hits.offsetPx,
       x, y, width, visible: token.visible,
     });
