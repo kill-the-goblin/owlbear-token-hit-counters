@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { clearCounters, scheduleCounterSync, tokenAtGridPoint, tokenForCounter } from "./counters";
+import { clearCounters, scheduleCounterSync, setCounterDisplay, tokenAtGridPoint, tokenForCounter } from "./counters";
 import { HITS_KEY, MENU_ID, MODE_ID, TOOL_ID, hitsData, readHits } from "./hits";
 
 let clickQueue = Promise.resolve();
@@ -25,33 +25,36 @@ function adjustOne(tokenId: string, delta: -1 | 1): void {
 }
 
 OBR.onReady(async () => {
-  if (await OBR.player.getRole() !== "GM") return;
+  const role = await OBR.player.getRole();
+  setCounterDisplay(role);
 
-  await OBR.contextMenu.create({
-    id: MENU_ID,
-    icons: [{ icon: "/icon.svg", label: "Token Hit Counters", filter: {
-      max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
-    } }],
-    embed: { url: "/menu.html", height: 140 },
-  });
+  if (role === "GM") {
+    await OBR.contextMenu.create({
+      id: MENU_ID,
+      icons: [{ icon: "/icon.svg", label: "Token Hit Counters", filter: {
+        max: 1, roles: ["GM"], every: [{ key: "layer", value: "CHARACTER" }],
+      } }],
+      embed: { url: "/menu.html", height: 140 },
+    });
 
-  await OBR.tool.createMode({
-    id: MODE_ID,
-    icons: [{ icon: "/icon.svg", label: "Spend or restore a hit" }],
-    async onToolClick(_context, event) {
-      const tokenId = await tokenAtGridPoint(event.pointerPosition) ??
-        (event.target ? tokenForCounter(event.target.id) : undefined);
-      if (!tokenId) return true;
-      adjustOne(tokenId, event.shiftKey ? 1 : -1);
-      return false;
-    },
-  });
-  await OBR.tool.create({
-    id: TOOL_ID,
-    icons: [{ icon: "/icon.svg", label: "Token Hit Counters" }],
-    shortcut: "H",
-    defaultMode: MODE_ID,
-  });
+    await OBR.tool.createMode({
+      id: MODE_ID,
+      icons: [{ icon: "/icon.svg", label: "Spend or restore a hit" }],
+      async onToolClick(_context, event) {
+        const tokenId = await tokenAtGridPoint(event.pointerPosition) ??
+          (event.target ? tokenForCounter(event.target.id) : undefined);
+        if (!tokenId) return true;
+        adjustOne(tokenId, event.shiftKey ? 1 : -1);
+        return false;
+      },
+    });
+    await OBR.tool.create({
+      id: TOOL_ID,
+      icons: [{ icon: "/icon.svg", label: "Token Hit Counters" }],
+      shortcut: "H",
+      defaultMode: MODE_ID,
+    });
+  }
 
   OBR.scene.items.onChange(scheduleCounterSync);
   OBR.scene.onReadyChange((ready) => {

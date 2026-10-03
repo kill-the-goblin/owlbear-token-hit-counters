@@ -17,10 +17,19 @@ type Counter = {
 const counters = new Map<string, Counter>();
 const IMAGE_SCALE = 8;
 const IMAGE_WIDTH = 100 * IMAGE_SCALE;
-const IMAGE_HEIGHT = 40 * IMAGE_SCALE;
+const GRID_HEIGHT = 40 * IMAGE_SCALE;
+const BAR_HEIGHT = 17 * IMAGE_SCALE;
 let latestItems: Item[] | null = null;
 let syncing = false;
 let initialized = false;
+let display: "GM" | "PLAYER" = "GM";
+
+export function setCounterDisplay(role: "GM" | "PLAYER"): void {
+  if (display === role) return;
+  display = role;
+  counters.clear();
+  initialized = false;
+}
 
 export function tokenForCounter(itemId: string): string | undefined {
   for (const counter of counters.values()) if (counter.id === itemId) return counter.tokenId;
@@ -28,7 +37,7 @@ export function tokenForCounter(itemId: string): string | undefined {
 }
 
 export async function tokenAtGridPoint(point: Vector2): Promise<string | undefined> {
-  if (counters.size === 0) return undefined;
+  if (display !== "GM" || counters.size === 0) return undefined;
   const viewScale = await OBR.viewport.getScale();
   if (!Number.isFinite(viewScale) || viewScale <= 0) return undefined;
   for (const counter of counters.values()) {
@@ -69,9 +78,20 @@ async function syncCounters(): Promise<void> {
   }
 }
 
-function counterImageUrl(remaining: number, color: string): string {
-  const name = remaining === 0 ? "dead" : String(remaining);
-  return new URL(`/hit-grids/${color}/${name}.svg`, window.location.origin).href;
+function gcd(a: number, b: number): number {
+  while (b) [a, b] = [b, a % b];
+  return a;
+}
+
+function counterImageUrl(hits: Hits): string {
+  if (display === "GM") {
+    const name = hits.remaining === 0 ? "dead" : String(hits.remaining);
+    return new URL(`/hit-grids/${hits.color}/${name}.svg`, window.location.origin).href;
+  }
+  if (hits.remaining === 0) return new URL(`/player-bars/${hits.color}/dead.svg`, window.location.origin).href;
+  const divisor = gcd(hits.remaining, hits.maximum);
+  const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
+  return new URL(`/player-bars/${hits.color}/${fraction}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
@@ -106,8 +126,9 @@ async function reconcile(items: Item[]): Promise<void> {
     const x = bounds.min.x + bounds.width / 2;
     const y = bounds.min.y;
     const width = counterSize(bounds.width, sceneDpi);
+    const imageHeight = display === "GM" ? GRID_HEIGHT : BAR_HEIGHT;
     // The grid's bottom edge rests on the token's top edge at zero offset.
-    const offsetY = IMAGE_HEIGHT - hits.offsetPx * IMAGE_WIDTH / width;
+    const offsetY = imageHeight - hits.offsetPx * IMAGE_WIDTH / width;
     const counter = counters.get(token.id);
     if (counter) {
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
@@ -118,12 +139,14 @@ async function reconcile(items: Item[]): Promise<void> {
           for (const item of items) {
             if (item.type !== "BILLBOARD") continue;
             const billboard = item as Billboard;
-            billboard.image.url = counterImageUrl(hits.remaining, hits.color);
+            billboard.image.url = counterImageUrl(hits);
             billboard.grid.offset.y = offsetY;
             billboard.scale = { x: width / 100, y: width / 100 };
             billboard.position = { x, y };
             billboard.visible = token.visible;
-            billboard.description = `${hits.remaining} of ${hits.maximum} hits remaining`;
+            billboard.description = display === "GM"
+              ? `${hits.remaining} of ${hits.maximum} hits remaining`
+              : "Token hits bar";
           }
         });
         Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, color: hits.color,
@@ -132,7 +155,7 @@ async function reconcile(items: Item[]): Promise<void> {
       continue;
     }
     const billboard = buildBillboard(
-      { width: IMAGE_WIDTH, height: IMAGE_HEIGHT, mime: "image/svg+xml", url: counterImageUrl(hits.remaining, hits.color) },
+      { width: IMAGE_WIDTH, height: imageHeight, mime: "image/svg+xml", url: counterImageUrl(hits) },
       { dpi: sceneDpi * IMAGE_SCALE, offset: { x: IMAGE_WIDTH / 2, y: offsetY } },
     )
       .position({ x, y })
@@ -142,9 +165,9 @@ async function reconcile(items: Item[]): Promise<void> {
       .layer("TEXT")
       .visible(token.visible)
       .locked(true)
-      .disableHit(false)
-      .name("Token Hit Counter")
-      .description(`${hits.remaining} of ${hits.maximum} hits remaining`)
+      .disableHit(display === "PLAYER")
+      .name(display === "GM" ? "Token Hit Counter" : "Token Hits Bar")
+      .description(display === "GM" ? `${hits.remaining} of ${hits.maximum} hits remaining` : "Token hits bar")
       .metadata({ [`${ID}/counter`]: token.id })
       .minViewScale(1)
       .maxViewScale(1)
