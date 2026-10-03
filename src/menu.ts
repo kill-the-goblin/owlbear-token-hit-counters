@@ -1,14 +1,16 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
-import { DEFAULT_ZERO_LABEL, HITS_KEY, MAX_ZERO_LABEL_LENGTH, hitsData, readHits, type Hits } from "./hits";
+import { AC_KEY, DEFAULT_ZERO_LABEL, HITS_KEY, MAX_ZERO_LABEL_LENGTH, hitsData, readAC, readHits, type Hits } from "./hits";
 import "./style.css";
 
 const input = document.querySelector<HTMLInputElement>("#maximum")!;
 const remaining = document.querySelector<HTMLInputElement>("#remaining")!;
+const ac = document.querySelector<HTMLInputElement>("#ac")!;
 const offset = document.querySelector<HTMLInputElement>("#offset")!;
 const zeroLabel = document.querySelector<HTMLInputElement>("#zero-label")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 let tokenId: string | undefined;
 let current: Hits | null = null;
+let currentAC: number | null = null;
 let pendingZero = false;
 let queue = Promise.resolve();
 
@@ -19,14 +21,17 @@ function showStatus(message: string): void {
 
 function render(item: Item | undefined): void {
   current = item ? readHits(item.metadata[HITS_KEY]) : null;
+  currentAC = item ? readAC(item.metadata[AC_KEY]) : null;
   if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
   if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : pendingZero ? "0" : "";
   if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? 0);
   if (document.activeElement !== zeroLabel) zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL;
+  if (document.activeElement !== ac) ac.value = currentAC === null ? "" : String(currentAC);
   input.disabled = !item;
   remaining.disabled = !item;
   offset.disabled = !current;
   zeroLabel.disabled = !current;
+  ac.disabled = !item;
 }
 
 async function refresh(): Promise<void> {
@@ -111,6 +116,33 @@ function queueCounts(id: string, maximum: number, next: number): void {
   });
 }
 
+function saveAC(): void {
+  const id = tokenId;
+  if (!id || ac.disabled) return;
+  const draft = ac.value.trim();
+  if (draft && (!/^\d+$/.test(draft) || Number(draft) > 99)) {
+    showStatus("Enter AC from 0 to 99.");
+    ac.value = currentAC === null ? "" : String(currentAC);
+    return;
+  }
+  const next = draft && Number(draft) > 0 ? Number(draft) : null;
+  if (next === currentAC) return;
+  queue = queue.then(async () => {
+    if (await OBR.player.getRole() !== "GM") return;
+    await OBR.scene.items.updateItems(
+      (item) => item.id === id && item.layer === "CHARACTER",
+      (items) => {
+        for (const item of items) item.metadata[AC_KEY] = next;
+      },
+    );
+    await refresh();
+    showStatus("");
+  }).catch((error: unknown) => {
+    showStatus(error instanceof Error ? error.message : "Could not save AC.");
+    void refresh();
+  });
+}
+
 function saveSettings(): void {
   const id = tokenId;
   if (!id || !current) return;
@@ -181,6 +213,12 @@ remaining.addEventListener("focus", () => remaining.select());
 remaining.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); remaining.blur(); }
   if (event.key === "Escape") { remaining.value = current ? String(current.remaining) : ""; remaining.blur(); }
+});
+ac.addEventListener("blur", saveAC);
+ac.addEventListener("focus", () => ac.select());
+ac.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); ac.blur(); }
+  if (event.key === "Escape") { ac.value = currentAC === null ? "" : String(currentAC); ac.blur(); }
 });
 offset.addEventListener("blur", saveSettings);
 offset.addEventListener("keydown", (event) => {

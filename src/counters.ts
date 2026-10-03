@@ -1,5 +1,5 @@
 import OBR, { buildBillboard, buildLabel, type Billboard, type Item, type Label, type Vector2 } from "@owlbear-rodeo/sdk";
-import { HITS_KEY, ID, readHits, type Hits } from "./hits";
+import { AC_KEY, HITS_KEY, ID, readAC, readHits, type Hits } from "./hits";
 
 type Counter = {
   id: string;
@@ -17,7 +17,17 @@ type Counter = {
   visible: boolean;
 };
 
+type ACBadge = {
+  id: string;
+  value: number;
+  x: number;
+  y: number;
+  viewScale: number;
+  visible: boolean;
+};
+
 const counters = new Map<string, Counter>();
+const acBadges = new Map<string, ACBadge>();
 const IMAGE_SCALE = 8;
 const IMAGE_WIDTH = 100 * IMAGE_SCALE;
 const GRID_HEIGHT = 40 * IMAGE_SCALE;
@@ -32,6 +42,7 @@ export function setCounterDisplay(role: "GM" | "PLAYER"): void {
   if (display === role) return;
   display = role;
   counters.clear();
+  acBadges.clear();
   initialized = false;
 }
 
@@ -57,6 +68,7 @@ export async function tokenAtGridPoint(point: Vector2): Promise<string | undefin
 
 export function clearCounters(): void {
   counters.clear();
+  acBadges.clear();
   latestItems = null;
   sceneItems = null;
   initialized = false;
@@ -69,9 +81,10 @@ export function scheduleCounterSync(items: Item[]): void {
 }
 
 export async function syncCounterViewport(): Promise<void> {
-  if (!sceneItems || ![...counters.values()].some((counter) => counter.kind === "LABEL" || counter.labelId)) return;
+  if (!sceneItems || (acBadges.size === 0 && ![...counters.values()].some((counter) => counter.kind === "LABEL" || counter.labelId))) return;
   const viewScale = await OBR.viewport.getScale();
-  if ([...counters.values()].some((counter) => (counter.kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale)) {
+  if ([...counters.values()].some((counter) => (counter.kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale) ||
+      [...acBadges.values()].some((badge) => badge.viewScale !== viewScale)) {
     scheduleCounterSync(sceneItems);
   }
 }
@@ -162,16 +175,19 @@ function updateZeroLabel(label: Label, hits: Hits, x: number, y: number, width: 
 async function reconcile(items: Item[]): Promise<void> {
   if (!initialized) {
     const previous = await OBR.scene.local.getItems((item) =>
-      typeof item.metadata[`${ID}/counter`] === "string",
+      typeof item.metadata[`${ID}/counter`] === "string" || typeof item.metadata[`${ID}/ac-badge`] === "string",
     );
     if (previous.length) await OBR.scene.local.deleteItems(previous.map((item) => item.id));
     initialized = true;
   }
   const wanted = new Map<string, { token: Item; hits: Hits }>();
+  const acWanted = new Map<string, { token: Item; value: number }>();
   for (const token of items) {
     if (token.layer !== "CHARACTER") continue;
     const hits = readHits(token.metadata[HITS_KEY]);
     if (hits) wanted.set(token.id, { token, hits });
+    const ac = readAC(token.metadata[AC_KEY]);
+    if (display === "GM" && ac !== null) acWanted.set(token.id, { token, value: ac });
   }
 
   const obsolete = [...counters.values()].filter((counter) => !wanted.has(counter.tokenId));
@@ -180,7 +196,13 @@ async function reconcile(items: Item[]): Promise<void> {
     for (const counter of obsolete) counters.delete(counter.tokenId);
   }
 
-  if (wanted.size === 0) return;
+  const obsoleteAC = [...acBadges.entries()].filter(([tokenId]) => !acWanted.has(tokenId));
+  if (obsoleteAC.length) {
+    await OBR.scene.local.deleteItems(obsoleteAC.map(([, badge]) => badge.id));
+    for (const [tokenId] of obsoleteAC) acBadges.delete(tokenId);
+  }
+
+  if (wanted.size === 0 && acWanted.size === 0) return;
   const sceneDpi = await OBR.scene.grid.getDpi();
   const viewScale = await OBR.viewport.getScale();
   for (const { token, hits } of wanted.values()) {
@@ -277,5 +299,67 @@ async function reconcile(items: Item[]): Promise<void> {
       offsetPx: hits.offsetPx, viewScale,
       x, y, width, visible: token.visible,
     });
+  }
+
+  for (const { token, value } of acWanted.values()) {
+    const bounds = await OBR.scene.items.getItemBounds([token.id]);
+    const diameter = 26;
+    const inset = 2;
+    const x = bounds.max.x - (diameter / 2 + inset) / viewScale;
+    const y = bounds.min.y + (diameter + inset) / viewScale;
+    const badge = acBadges.get(token.id);
+    if (badge) {
+      if (badge.value !== value || badge.x !== x || badge.y !== y ||
+          badge.viewScale !== viewScale || badge.visible !== token.visible) {
+        await OBR.scene.local.updateItems([badge.id], (localItems) => {
+          for (const item of localItems) {
+            if (item.type !== "LABEL") continue;
+            const acLabel = item as Label;
+            acLabel.text.plainText = String(value);
+            acLabel.position = { x, y };
+            acLabel.scale = { x: 1, y: 1 };
+            acLabel.visible = token.visible;
+            acLabel.description = `Armor Class ${value}`;
+          }
+        });
+        Object.assign(badge, { value, x, y, viewScale, visible: token.visible });
+      }
+      continue;
+    }
+    const label = buildLabel()
+      .plainText(String(value))
+      .width(26)
+      .height(26)
+      .padding(0)
+      .fontFamily("sans-serif")
+      .fontSize(16)
+      .fontWeight(700)
+      .textAlign("CENTER")
+      .textAlignVertical("MIDDLE")
+      .fillColor("#ffffff")
+      .strokeColor("#1e3358")
+      .strokeWidth(0.5)
+      .backgroundColor("#5c8fdb")
+      .backgroundOpacity(0.9)
+      .cornerRadius(13)
+      .pointerWidth(0)
+      .pointerHeight(0)
+      .pointerDirection("DOWN")
+      .position({ x, y })
+      .scale({ x: 1, y: 1 })
+      .attachedTo(token.id)
+      .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY", "SCALE"])
+      .layer("TEXT")
+      .visible(token.visible)
+      .locked(true)
+      .disableHit(true)
+      .name("Token Armor Class")
+      .description(`Armor Class ${value}`)
+      .metadata({ [`${ID}/ac-badge`]: token.id })
+      .minViewScale(1)
+      .maxViewScale(1)
+      .build();
+    await OBR.scene.local.addItems([label]);
+    acBadges.set(token.id, { id: label.id, value, x, y, viewScale, visible: token.visible });
   }
 }

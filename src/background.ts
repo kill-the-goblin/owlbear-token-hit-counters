@@ -57,6 +57,10 @@ OBR.onReady(async () => {
   }
 
   OBR.scene.items.onChange(scheduleCounterSync);
+  OBR.player.onChange(async () => {
+    setCounterDisplay(await OBR.player.getRole());
+    if (await OBR.scene.isReady()) scheduleCounterSync(await OBR.scene.items.getItems());
+  });
   OBR.scene.onReadyChange((ready) => {
     if (!ready) clearCounters();
     else void OBR.scene.items.getItems().then(scheduleCounterSync);

@@ -1,10 +1,16 @@
 export const ID = "com.nealenssle.obr-token-hits";
 export const HITS_KEY = `${ID}/hits`;
+export const AC_KEY = `${ID}/ac`;
 export const MENU_ID = `${ID}/menu`;
 export const TOOL_ID = `${ID}/tool`;
 export const MODE_ID = `${ID}/mode`;
 export const DEFAULT_ZERO_LABEL = "DEAD";
 export const MAX_ZERO_LABEL_LENGTH = 16;
+
+export function readAC(value: unknown): number | null {
+  return Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 99
+    ? value as number : null;
+}
 
 export type Hits = {
   version: 1;
