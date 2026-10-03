@@ -1,4 +1,4 @@
-import OBR, { buildBillboard, type Billboard, type Item } from "@owlbear-rodeo/sdk";
+import OBR, { buildBillboard, type Billboard, type Item, type Vector2 } from "@owlbear-rodeo/sdk";
 import { HITS_KEY, ID, readHits, type Hits } from "./hits";
 
 type Counter = {
@@ -24,6 +24,21 @@ let initialized = false;
 
 export function tokenForCounter(itemId: string): string | undefined {
   for (const counter of counters.values()) if (counter.id === itemId) return counter.tokenId;
+  return undefined;
+}
+
+export async function tokenAtGridPoint(point: Vector2): Promise<string | undefined> {
+  if (counters.size === 0) return undefined;
+  const viewScale = await OBR.viewport.getScale();
+  if (!Number.isFinite(viewScale) || viewScale <= 0) return undefined;
+  for (const counter of counters.values()) {
+    if (!counter.visible) continue;
+    const halfWidth = counter.width / (2 * viewScale);
+    const bottom = counter.y + counter.offsetPx / viewScale;
+    const top = bottom - counter.width * 0.4 / viewScale;
+    if (point.x >= counter.x - halfWidth && point.x <= counter.x + halfWidth &&
+        point.y >= top && point.y <= bottom) return counter.tokenId;
+  }
   return undefined;
 }
 

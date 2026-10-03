@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { clearCounters, scheduleCounterSync, tokenForCounter } from "./counters";
+import { clearCounters, scheduleCounterSync, tokenAtGridPoint, tokenForCounter } from "./counters";
 import { HITS_KEY, MENU_ID, MODE_ID, TOOL_ID, hitsData, readHits } from "./hits";
 
 let clickQueue = Promise.resolve();
@@ -38,8 +38,9 @@ OBR.onReady(async () => {
   await OBR.tool.createMode({
     id: MODE_ID,
     icons: [{ icon: "/icon.svg", label: "Spend or restore a hit" }],
-    onToolClick(_context, event) {
-      const tokenId = event.target ? tokenForCounter(event.target.id) : undefined;
+    async onToolClick(_context, event) {
+      const tokenId = await tokenAtGridPoint(event.pointerPosition) ??
+        (event.target ? tokenForCounter(event.target.id) : undefined);
       if (!tokenId) return true;
       adjustOne(tokenId, event.shiftKey ? 1 : -1);
       return false;

@@ -16,9 +16,8 @@ for (const color of palette) {
     const zero = remaining === 0
       ? `<text x="50" y="28" text-anchor="middle" font-family="sans-serif" font-size="25" font-weight="700" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1" paint-order="stroke">0</text>`
       : "";
-    // This faint rectangle gives every image the same full-size hit area.
     // The SVG rasterizes at 8x its logical size so large tokens stay sharp.
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40"><rect width="100" height="40" fill="#fff" fill-opacity="0.02"/>${boxes}${zero}</svg>\n`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40">${boxes}${zero}</svg>\n`;
     await writeFile(new URL(`${remaining}.svg`, folder), svg);
   }
 }
