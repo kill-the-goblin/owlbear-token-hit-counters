@@ -1,0 +1,9 @@
+{
+  "name": "Owlbear Rodeo Token HP",
+  "version": "0.1.0",
+  "manifest_version": 1,
+  "author": "Neal Enssle",
+  "description": "Quick GM hit point tracking on character tokens (scaffold).",
+  "icon": "/icon.svg",
+  "background_url": "/background.html"
+}

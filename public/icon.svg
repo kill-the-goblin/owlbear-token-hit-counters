@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Token HP">
+  <rect width="64" height="64" rx="14" fill="#9b2434"/>
+  <path d="M32 51 10 29a13 13 0 0 1 19-18l3 3 3-3a13 13 0 0 1 19 18Z" fill="#fff"/>
+</svg>
