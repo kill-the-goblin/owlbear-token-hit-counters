@@ -1,6 +1,8 @@
 # Owlbear Rodeo Token HP
 
-Scaffold for a GM tool to adjust hit points by clicking badges attached to tokens. This version only registers the tool and `H` shortcut; it does not track HP yet.
+A GM-only hit point tracker for character tokens. Select one token to open its **Token HP** menu section. Type current HP and leave the field to save, or use the **−** and **+** buttons to change it by one immediately. Empty HP removes the badge; values stop at zero.
+
+A red badge at the token's upper-right corner shows current HP to the GM. Press **H** to activate Token HP mode, then click a badge to subtract one HP. Other map clicks retain Owlbear's normal selection behavior.
 
 ## Development
 
@@ -9,10 +11,8 @@ npm install
 npm run dev
 ```
 
-Load `http://localhost:11209/manifest.json` as a custom extension in Owlbear Rodeo. The manifest and background page are served by Vite. Run `npm run build` for a static `dist/` directory.
+Load `http://localhost:11209/manifest.json` as a custom extension in Owlbear Rodeo. Run `npm run build` for a static `dist/` directory.
 
-## Planned first prototype
+## Verification needed in Owlbear
 
-- Attach a screen-size-stable label to a character token and store current HP in namespaced item metadata.
-- Verify badge hit detection in the active tool mode.
-- Settle click, damage entry, healing, and player-visibility behavior before implementing the tracker.
+The build verifies the SDK types, but badge placement, local-item hit detection, the `H` shortcut, and GM-only display need a live test in a disposable scene.
