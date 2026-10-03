@@ -40,6 +40,7 @@ OBR.onReady(async () => {
     await OBR.tool.createMode({
       id: MODE_ID,
       icons: [{ icon: "/icon.svg", label: "Spend or restore a hit" }],
+      shortcut: "H",
       async onToolClick(_context, event) {
         const tokenId = await tokenAtGridPoint(event.pointerPosition) ??
           (event.target ? tokenForCounter(event.target.id) : undefined);
@@ -51,7 +52,6 @@ OBR.onReady(async () => {
     await OBR.tool.create({
       id: TOOL_ID,
       icons: [{ icon: "/icon.svg", label: "Token Hit Counters" }],
-      shortcut: "H",
       defaultMode: MODE_ID,
     });
   }

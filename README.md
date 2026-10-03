@@ -10,7 +10,7 @@ Players see a single continuous bar at the same width and offset, with a visible
 
 At zero offset, the grid's bottom edge meets the token's top edge. Use **Offset [value] ♡ [label]** to move it up (negative) or down (positive) by a fixed screen-pixel distance and set the zero-counter label (up to 16 characters, default `DEAD`). The label field fills the rest of its row, and the label is displayed in uppercase. Both settings belong to each token and remain when its hit count changes.
 
-The GM presses **H** to activate Token Hit Counters mode. Click the grid to spend one hit, or Shift-click to restore one. The count stays between zero and its configured maximum. Players cannot edit hits through the extension.
+The GM presses **H** to select Token Hit Counters mode in the top tool menu. Click the grid to spend one hit, or Shift-click to restore one. Press **W** to return to Move mode, or switch between them in the top menu. The count stays between zero and its configured maximum. Players cannot edit hits through the extension.
 
 ## Development
 
