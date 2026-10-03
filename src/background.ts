@@ -1,8 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { clearCounters, scheduleCounterSync, setCounterDisplay, syncCounterViewport, tokenAtGridPoint, tokenForCounter } from "./counters";
-import { HITS_KEY, MENU_ID, MODE_ID, MOVE_MODE_ID, TOOL_ID, hitsData, readHits } from "./hits";
-
-const POINTER_TOOL_ID = "rodeo.owlbear.tools/pointer";
+import { HITS_KEY, MENU_ID, MODE_ID, TOOL_ID, hitsData, readHits } from "./hits";
 
 let clickQueue = Promise.resolve();
 
@@ -40,13 +38,8 @@ OBR.onReady(async () => {
     });
 
     await OBR.tool.createMode({
-      id: MOVE_MODE_ID,
-      icons: [{ icon: "/move.svg", label: "Move", filter: { activeTools: [TOOL_ID] } }],
-    });
-
-    await OBR.tool.createMode({
       id: MODE_ID,
-      icons: [{ icon: "/icon.svg", label: "Spend or restore a hit", filter: { activeTools: [POINTER_TOOL_ID, TOOL_ID] } }],
+      icons: [{ icon: "/icon.svg", label: "Spend or restore a hit", filter: { activeTools: [TOOL_ID] } }],
       async onToolClick(_context, event) {
         const tokenId = await tokenAtGridPoint(event.pointerPosition) ??
           (event.target ? tokenForCounter(event.target.id) : undefined);

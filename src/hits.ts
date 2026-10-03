@@ -4,7 +4,6 @@ export const AC_KEY = `${ID}/ac`;
 export const MENU_ID = `${ID}/menu`;
 export const TOOL_ID = `${ID}/tool`;
 export const MODE_ID = `${ID}/mode`;
-export const MOVE_MODE_ID = `${ID}/move-mode`;
 export const DEFAULT_ZERO_LABEL = "DEAD";
 export const MAX_ZERO_LABEL_LENGTH = 16;
 
