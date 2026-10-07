@@ -6,6 +6,7 @@ export const TOOL_ID = `${ID}/tool`;
 export const MODE_ID = `${ID}/mode`;
 export const DEFAULT_ZERO_LABEL = "DEAD";
 export const MAX_ZERO_LABEL_LENGTH = 16;
+export const MAX_HITS = 15;
 
 export function readAC(value: unknown): number | null {
   return Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 99
@@ -25,7 +26,7 @@ export function readHits(value: unknown): Hits | null {
   const data = value as Partial<Hits>;
   if (!(data.version === 1 && Number.isSafeInteger(data.maximum) &&
     Number.isSafeInteger(data.remaining) && data.maximum! >= 1 &&
-    data.maximum! <= 10 && data.remaining! >= 0 &&
+    data.maximum! <= MAX_HITS && data.remaining! >= 0 &&
     data.remaining! <= data.maximum!)) return null;
   const offsetPx = data.offsetPx ?? 0;
   if (!Number.isSafeInteger(offsetPx) || offsetPx < -200 || offsetPx > 200) return null;

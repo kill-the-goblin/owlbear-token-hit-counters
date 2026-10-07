@@ -30,6 +30,7 @@ const acBadges = new Map<string, ACBadge>();
 const IMAGE_SCALE = 8;
 const IMAGE_WIDTH = 100 * IMAGE_SCALE;
 const GRID_HEIGHT = 40 * IMAGE_SCALE;
+const THREE_ROW_GRID_HEIGHT = 60 * IMAGE_SCALE;
 const BAR_HEIGHT = 19 * IMAGE_SCALE;
 const AC_SIZE = 26 * IMAGE_SCALE;
 const AC_INSET = 2 * IMAGE_SCALE;
@@ -60,7 +61,8 @@ export async function tokenAtGridPoint(point: Vector2): Promise<string | undefin
     if (!counter.visible) continue;
     const halfWidth = counter.width / (2 * viewScale);
     const bottom = counter.y + counter.offsetPx / viewScale;
-    const top = bottom - counter.width * 0.4 / viewScale;
+    const gridHeight = counter.maximum > 10 ? 0.6 : 0.4;
+    const top = bottom - counter.width * gridHeight / viewScale;
     if (point.x >= counter.x - halfWidth && point.x <= counter.x + halfWidth &&
         point.y >= top && point.y <= bottom) return counter.tokenId;
   }
@@ -118,7 +120,7 @@ function counterColor(hits: Hits): "green" | "yellow" | "red" {
 
 function counterImageUrl(hits: Hits): string {
   if (display === "GM") {
-    if (hits.remaining === 0) return new URL("/hit-grids/red/0.svg", window.location.origin).href;
+    if (hits.remaining === 0) return new URL(hits.maximum > 10 ? "/hit-grids/red/0-3.svg" : "/hit-grids/red/0.svg", window.location.origin).href;
     return new URL(`/hit-grids/${counterColor(hits)}/${hits.remaining}-${hits.maximum}.svg`, window.location.origin).href;
   }
   const divisor = gcd(hits.remaining, hits.maximum);
@@ -131,10 +133,11 @@ function counterSize(tokenWidth: number, sceneDpi: number): number {
 }
 
 function makeZeroLabel(token: Item, hits: Hits, x: number, y: number, width: number, viewScale: number): Label {
+  const height = display === "GM" && hits.maximum > 10 ? 60 : 40;
   return buildLabel()
     .plainText(hits.zeroLabel)
     .width(100)
-    .height(40)
+    .height(height)
     .padding(0)
     .fontFamily("sans-serif")
     .fontSize(Math.min(24, Math.floor(150 / Array.from(hits.zeroLabel).length)))
@@ -166,6 +169,7 @@ function makeZeroLabel(token: Item, hits: Hits, x: number, y: number, width: num
 
 function updateZeroLabel(label: Label, hits: Hits, x: number, y: number, width: number, viewScale: number, visible: boolean): void {
   label.text.plainText = hits.zeroLabel;
+  label.text.height = display === "GM" && hits.maximum > 10 ? 60 : 40;
   label.text.style.fontSize = Math.min(24, Math.floor(150 / Array.from(hits.zeroLabel).length));
   label.scale = { x: width / 100, y: width / 100 };
   label.position = { x, y: y + hits.offsetPx / viewScale };
@@ -210,7 +214,9 @@ async function reconcile(items: Item[]): Promise<void> {
     const x = bounds.min.x + bounds.width / 2;
     const y = bounds.min.y;
     const width = counterSize(bounds.width, sceneDpi);
-    const imageHeight = display === "GM" || hits.remaining === 0 ? GRID_HEIGHT : BAR_HEIGHT;
+    const imageHeight = display === "GM"
+      ? hits.maximum > 10 ? THREE_ROW_GRID_HEIGHT : GRID_HEIGHT
+      : hits.remaining === 0 ? GRID_HEIGHT : BAR_HEIGHT;
     const kind = display === "PLAYER" && hits.remaining === 0 ? "LABEL" : "BILLBOARD";
     // The grid's bottom edge rests on the token's top edge at zero offset.
     const offsetY = imageHeight - hits.offsetPx * IMAGE_WIDTH / width;

@@ -1,6 +1,6 @@
 {
   "name": "Token Hit Counters",
-  "version": "0.3.6",
+  "version": "0.4.0",
   "manifest_version": 1,
   "author": "Neal Enssle",
   "description": "Track hits with a GM grid and a player progress bar.",

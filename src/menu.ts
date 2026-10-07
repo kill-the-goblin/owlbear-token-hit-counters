@@ -1,5 +1,5 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
-import { AC_KEY, DEFAULT_ZERO_LABEL, HITS_KEY, MAX_ZERO_LABEL_LENGTH, hitsData, readAC, readHits, type Hits } from "./hits";
+import { AC_KEY, DEFAULT_ZERO_LABEL, HITS_KEY, MAX_HITS, MAX_ZERO_LABEL_LENGTH, hitsData, readAC, readHits, type Hits } from "./hits";
 import "./style.css";
 
 const input = document.querySelector<HTMLInputElement>("#maximum")!;
@@ -44,8 +44,8 @@ function saveDraft(): void {
   const id = tokenId;
   if (!id || input.disabled) return;
   const draft = input.value.trim();
-  if (draft && (!/^\d+$/.test(draft) || Number(draft) > 10)) {
-    showStatus("Enter a total from 0 to 10.");
+  if (draft && (!/^\d+$/.test(draft) || Number(draft) > MAX_HITS)) {
+    showStatus(`Enter a total from 0 to ${MAX_HITS}.`);
     input.value = current ? String(current.maximum) : "";
     return;
   }
@@ -58,7 +58,7 @@ function saveDraft(): void {
     return;
   }
   const draftRemaining = remaining.value.trim();
-  if (draftRemaining && (!/^\d+$/.test(draftRemaining) || Number(draftRemaining) > 10 ||
+  if (draftRemaining && (!/^\d+$/.test(draftRemaining) || Number(draftRemaining) > MAX_HITS ||
       (!current && Number(draftRemaining) > maximum))) {
     showStatus(`Enter 0–${maximum} remaining.`);
     return;
@@ -77,10 +77,10 @@ function saveRemaining(): void {
   const draft = remaining.value.trim();
   const next = Number(draft);
   const draftMaximum = input.value.trim();
-  const maximum = draftMaximum && /^\d+$/.test(draftMaximum) && Number(draftMaximum) <= 10
+  const maximum = draftMaximum && /^\d+$/.test(draftMaximum) && Number(draftMaximum) <= MAX_HITS
     ? Number(draftMaximum) : current?.maximum ?? 0;
-  if (!/^\d+$/.test(draft) || !Number.isSafeInteger(next) || next > 10 || (maximum > 0 && next > maximum)) {
-    showStatus(`Enter 0–${maximum || 10} remaining.`);
+  if (!/^\d+$/.test(draft) || !Number.isSafeInteger(next) || next > MAX_HITS || (maximum > 0 && next > maximum)) {
+    showStatus(`Enter 0–${maximum || MAX_HITS} remaining.`);
     remaining.value = current ? String(current.remaining) : "";
     return;
   }
