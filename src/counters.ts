@@ -38,6 +38,7 @@ const BAR_HEIGHT = 19 * IMAGE_SCALE;
 const AC_SIZE = 26 * IMAGE_SCALE;
 const AC_INSET = 2 * IMAGE_SCALE;
 const BOX_IMAGE_SIZE = 18 * IMAGE_SCALE;
+const GRID_GAP_PX = 5;
 let latestItems: Item[] | null = null;
 let sceneItems: Item[] | null = null;
 let syncing = false;
@@ -64,7 +65,7 @@ export function tokenAtGridPoint(point: Vector2): string | undefined {
     // These are the scene-space dimensions used to build the billboard. Owlbear's
     // reported billboard bounds do not cover its scaled, transparent grid area.
     const halfWidth = counter.width / 2;
-    const bottom = counter.y + counter.offsetPx;
+    const bottom = counter.y + counter.offsetPx - GRID_GAP_PX;
     const top = bottom - counter.width * (counter.maximum > 10 ? 0.6 : 0.4);
     if (point.x >= counter.x - halfWidth && point.x <= counter.x + halfWidth &&
         point.y >= top && point.y <= bottom) return counter.tokenId;
@@ -174,7 +175,7 @@ function tokenGeometryKey(token: Item): string {
 function makeBox(token: Item, hits: Hits, index: number, x: number, y: number, width: number, sceneDpi: number): Billboard {
   return buildBillboard(
     { width: BOX_IMAGE_SIZE, height: BOX_IMAGE_SIZE, mime: "image/svg+xml", url: boxImageUrl(hits, index) },
-    { dpi: sceneDpi * IMAGE_SCALE, offset: boxOffset(hits.maximum, index, width, hits.offsetPx) },
+    { dpi: sceneDpi * IMAGE_SCALE, offset: boxOffset(hits.maximum, index, width, hits.offsetPx - GRID_GAP_PX) },
   )
     .position({ x, y })
     .scale({ x: width / 100, y: width / 100 })
@@ -210,7 +211,7 @@ function makeZeroLabel(token: Item, hits: Hits, x: number, y: number, width: num
     .pointerWidth(0)
     .pointerHeight(0)
     .pointerDirection("DOWN")
-    .position({ x, y: y + hits.offsetPx / viewScale })
+    .position({ x, y: y + (hits.offsetPx - GRID_GAP_PX) / viewScale })
     .scale({ x: width / 100, y: width / 100 })
     .attachedTo(token.id)
     .disableAttachmentBehavior(display === "GM" ? ["ROTATION", "LOCKED", "COPY", "VISIBLE"] : ["ROTATION", "LOCKED", "COPY"])
@@ -231,7 +232,7 @@ function updateZeroLabel(label: Label, hits: Hits, x: number, y: number, width: 
   label.text.height = display === "GM" && hits.maximum > 10 ? 60 : 40;
   label.text.style.fontSize = Math.min(24, Math.floor(150 / Array.from(hits.zeroLabel).length));
   label.scale = { x: width / 100, y: width / 100 };
-  label.position = { x, y: y + hits.offsetPx / viewScale };
+  label.position = { x, y: y + (hits.offsetPx - GRID_GAP_PX) / viewScale };
   label.visible = visible;
 }
 
@@ -280,8 +281,8 @@ async function reconcile(items: Item[]): Promise<void> {
       ? hits.maximum > 10 ? THREE_ROW_GRID_HEIGHT : GRID_HEIGHT
       : hits.remaining === 0 ? GRID_HEIGHT : BAR_HEIGHT;
     const kind = display === "PLAYER" && hits.remaining === 0 ? "LABEL" : "BILLBOARD";
-    // The grid's bottom edge rests on the token's top edge at zero offset.
-    const offsetY = imageHeight - hits.offsetPx * IMAGE_WIDTH / width;
+    // Offset 0 leaves a five-pixel gap above the token.
+    const offsetY = imageHeight - (hits.offsetPx - GRID_GAP_PX) * IMAGE_WIDTH / width;
     if (counter && counter.kind !== kind) {
       await OBR.scene.local.deleteItems([counter.id, ...(counter.labelId ? [counter.labelId] : []), ...(counter.boxIds ?? [])]);
       counters.delete(token.id);
@@ -342,7 +343,7 @@ async function reconcile(items: Item[]): Promise<void> {
               const nextUrl = boxImageUrl(hits, index);
               if (box.image.url !== nextUrl) box.image.url = nextUrl;
               if (geometryChanged) {
-                box.grid.offset = boxOffset(hits.maximum, index, width, hits.offsetPx);
+                box.grid.offset = boxOffset(hits.maximum, index, width, hits.offsetPx - GRID_GAP_PX);
                 box.position = { x, y };
                 box.scale = { x: width / 100, y: width / 100 };
               }

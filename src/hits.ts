@@ -8,7 +8,7 @@ export const DEFAULT_ZERO_LABEL = "DEAD";
 export const MAX_ZERO_LABEL_LENGTH = 16;
 export const MAX_HITS = 15;
 export const MAX_HP_PER_BOX = 999;
-export const DEFAULT_OFFSET_PX = -5;
+export const DEFAULT_OFFSET_PX = 0;
 
 export function readAC(value: unknown): number | null {
   return Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 99
