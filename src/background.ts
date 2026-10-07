@@ -42,7 +42,7 @@ OBR.onReady(async () => {
       icons: [{ icon: "/icon.svg", label: "Spend or restore a hit", filter: { activeTools: [TOOL_ID] } }],
       async onToolClick(_context, event) {
         const tokenId = (event.target ? tokenForCounter(event.target.id) : undefined) ??
-          await tokenAtGridPoint(event.pointerPosition);
+          tokenAtGridPoint(event.pointerPosition);
         if (!tokenId) return true;
         adjustOne(tokenId, event.shiftKey ? 1 : -1);
         return false;

@@ -53,21 +53,17 @@ export function tokenForCounter(itemId: string): string | undefined {
   return undefined;
 }
 
-export async function tokenAtGridPoint(point: Vector2): Promise<string | undefined> {
+export function tokenAtGridPoint(point: Vector2): string | undefined {
   if (display !== "GM" || counters.size === 0) return undefined;
-  const visible = [...counters.values()].filter((counter) => counter.visible);
-  const bounds = await Promise.allSettled(visible.map((counter) => OBR.scene.local.getItemBounds([counter.id])));
-  for (let index = 0; index < visible.length; index += 1) {
-    const result = bounds[index];
-    if (result.status !== "fulfilled") continue;
-    const { min, max, width } = result.value;
-    // Owlbear can report the older two-row height for a resized billboard.
-    // Anchor the click surface to its bottom edge and use the SVG's full aspect ratio.
-    const gridHeight = width * (visible[index].maximum > 10 ? 0.6 : 0.4);
-    const top = max.y - gridHeight;
-    if (point.x >= min.x && point.x <= max.x && point.y >= top && point.y <= max.y) {
-      return visible[index].tokenId;
-    }
+  for (const counter of counters.values()) {
+    if (!counter.visible) continue;
+    // These are the scene-space dimensions used to build the billboard. Owlbear's
+    // reported billboard bounds do not cover its scaled, transparent grid area.
+    const halfWidth = counter.width / 2;
+    const bottom = counter.y + counter.offsetPx;
+    const top = bottom - counter.width * (counter.maximum > 10 ? 0.6 : 0.4);
+    if (point.x >= counter.x - halfWidth && point.x <= counter.x + halfWidth &&
+        point.y >= top && point.y <= bottom) return counter.tokenId;
   }
   return undefined;
 }
