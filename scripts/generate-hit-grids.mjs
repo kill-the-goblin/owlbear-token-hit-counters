@@ -89,6 +89,8 @@ const boxFolder = new URL("box/", output);
 await mkdir(boxFolder, { recursive: true });
 const emptyBox = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 18 18"><rect x="0.5" y="0.5" width="17" height="17" rx="2" fill="none" stroke="#fff" stroke-opacity="0.65" stroke-width="1"/></svg>\n`;
 await writeFile(new URL("empty.svg", boxFolder), emptyBox);
+const grayBox = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 18 18"><rect x="0.5" y="0.5" width="17" height="17" rx="2" fill="#bfbfbf" stroke="#4b5563" stroke-width="1"/></svg>\n`;
+await writeFile(new URL("gray.svg", boxFolder), grayBox);
 for (const id of ["green", "yellow", "red"]) {
   const color = palette.find((entry) => entry.id === id);
   if (!color) throw new Error(`Missing box color: ${id}`);

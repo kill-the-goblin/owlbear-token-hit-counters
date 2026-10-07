@@ -3,6 +3,7 @@
 body{margin:0}
 #app{position:relative;padding:4px 7px;background:var(--obr-surface);height:100vh}
 .controls{display:flex;align-items:center;gap:8px;min-height:34px}
+.controls:nth-child(2){gap:6px}
 .controls label{font-weight:600;white-space:nowrap}
 .controls label[for="offset"]{font-weight:400}
 .controls input{height:30px;border:1px solid color-mix(in srgb,var(--obr-surface) 70%,var(--obr-text));border-radius:5px;background:var(--obr-input);color:var(--obr-text);font:inherit}
@@ -10,9 +11,9 @@ body{margin:0}
 #remaining,#maximum{width:42px;flex:0 0 42px}
 .controls label[for="ac"]{margin-left:auto}
 #ac{width:44px;flex:0 0 44px}
-#offset{width:44px}
-.zero-glyph{flex:0 0 24px;text-align:center;font-size:20px;font-weight:400;line-height:1;color:var(--obr-muted)}
-#zero-label{flex:1;min-width:0;width:auto;text-align:center;padding:0 4px}
+#offset{width:40px;flex:0 0 40px}
+#hp-per-box{width:44px;flex:0 0 44px}
+#hp-total{min-width:0;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .controls input:focus{outline:2px solid #b894f6;outline-offset:1px}
 #status{position:absolute;bottom:2px;left:7px;right:7px;margin:0;padding:2px 4px;border-radius:3px;background:#582a40;color:#fff;font-size:11px}
 #status[hidden]{display:none}

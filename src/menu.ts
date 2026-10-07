@@ -1,12 +1,13 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
-import { AC_KEY, DEFAULT_ZERO_LABEL, HITS_KEY, MAX_HITS, MAX_ZERO_LABEL_LENGTH, hitsData, readAC, readHits, type Hits } from "./hits";
+import { AC_KEY, HITS_KEY, MAX_HITS, MAX_HP_PER_BOX, hitsData, readAC, readHits, type Hits } from "./hits";
 import "./style.css";
 
 const input = document.querySelector<HTMLInputElement>("#maximum")!;
 const remaining = document.querySelector<HTMLInputElement>("#remaining")!;
 const ac = document.querySelector<HTMLInputElement>("#ac")!;
 const offset = document.querySelector<HTMLInputElement>("#offset")!;
-const zeroLabel = document.querySelector<HTMLInputElement>("#zero-label")!;
+const hpPerBox = document.querySelector<HTMLInputElement>("#hp-per-box")!;
+const hpTotal = document.querySelector<HTMLOutputElement>("#hp-total")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 let tokenId: string | undefined;
 let current: Hits | null = null;
@@ -19,19 +20,30 @@ function showStatus(message: string): void {
   status.hidden = !message;
 }
 
+function updateHpTotal(): void {
+  const maximum = Number(input.value);
+  const count = remaining.value.trim() === "" ? maximum : Number(remaining.value);
+  const perBox = Number(hpPerBox.value);
+  hpTotal.value = Number.isSafeInteger(maximum) && maximum >= 0 && maximum <= MAX_HITS &&
+    Number.isSafeInteger(count) && count >= 0 && count <= maximum &&
+    Number.isSafeInteger(perBox) && perBox >= 1 && perBox <= MAX_HP_PER_BOX
+      ? `${count * perBox}/${maximum * perBox}` : "—";
+}
+
 function render(item: Item | undefined): void {
   current = item ? readHits(item.metadata[HITS_KEY]) : null;
   currentAC = item ? readAC(item.metadata[AC_KEY]) : null;
   if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
   if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : pendingZero ? "0" : "";
   if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? 0);
-  if (document.activeElement !== zeroLabel) zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL;
+  if (document.activeElement !== hpPerBox) hpPerBox.value = String(current?.hpPerBox ?? 1);
   if (document.activeElement !== ac) ac.value = currentAC === null ? "" : String(currentAC);
   input.disabled = !item;
   remaining.disabled = !item;
   offset.disabled = !current;
-  zeroLabel.disabled = !current;
+  hpPerBox.disabled = !current;
   ac.disabled = !item;
+  updateHpTotal();
 }
 
 async function refresh(): Promise<void> {
@@ -172,17 +184,20 @@ function saveSettings(): void {
   });
 }
 
-function saveZeroLabel(): void {
+function saveHpPerBox(): void {
   const id = tokenId;
   if (!id || !current) return;
-  const label = zeroLabel.value.trim().toUpperCase() || DEFAULT_ZERO_LABEL;
-  if (Array.from(label).length > MAX_ZERO_LABEL_LENGTH || /[\x00-\x1f\x7f]/.test(label)) {
-    showStatus(`Enter a single-line label of at most ${MAX_ZERO_LABEL_LENGTH} characters.`);
-    zeroLabel.value = current.zeroLabel;
+  const draft = hpPerBox.value.trim();
+  const next = Number(draft);
+  if (!/^\d+$/.test(draft) || !Number.isSafeInteger(next) || next < 1 || next > MAX_HP_PER_BOX) {
+    showStatus(`Enter 1–${MAX_HP_PER_BOX} HP per box.`);
+    hpPerBox.value = String(current.hpPerBox);
+    updateHpTotal();
     return;
   }
-  zeroLabel.value = label;
-  if (label === current.zeroLabel) return;
+  hpPerBox.value = String(next);
+  updateHpTotal();
+  if (next === current.hpPerBox) return;
   queue = queue.then(async () => {
     if (await OBR.player.getRole() !== "GM") return;
     await OBR.scene.items.updateItems(
@@ -190,14 +205,14 @@ function saveZeroLabel(): void {
       (items) => {
         for (const item of items) {
           const hits = readHits(item.metadata[HITS_KEY]);
-          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, { ...hits, zeroLabel: label });
+          if (hits) item.metadata[HITS_KEY] = hitsData(hits.maximum, hits.remaining, { ...hits, hpPerBox: next });
         }
       },
     );
     await refresh();
     showStatus("");
   }).catch((error: unknown) => {
-    showStatus(error instanceof Error ? error.message : "Could not save zero label.");
+    showStatus(error instanceof Error ? error.message : "Could not save HP per box.");
     void refresh();
   });
 }
@@ -225,11 +240,15 @@ offset.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); offset.blur(); }
   if (event.key === "Escape") { offset.value = String(current?.offsetPx ?? 0); offset.blur(); }
 });
-zeroLabel.addEventListener("blur", saveZeroLabel);
-zeroLabel.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") { event.preventDefault(); zeroLabel.blur(); }
-  if (event.key === "Escape") { zeroLabel.value = current?.zeroLabel ?? DEFAULT_ZERO_LABEL; zeroLabel.blur(); }
+hpPerBox.addEventListener("blur", saveHpPerBox);
+hpPerBox.addEventListener("focus", () => hpPerBox.select());
+hpPerBox.addEventListener("input", updateHpTotal);
+hpPerBox.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); hpPerBox.blur(); }
+  if (event.key === "Escape") { hpPerBox.value = String(current?.hpPerBox ?? 1); hpPerBox.blur(); }
 });
+input.addEventListener("input", updateHpTotal);
+remaining.addEventListener("input", updateHpTotal);
 
 OBR.onReady(async () => {
   OBR.scene.items.onChange((items) => {

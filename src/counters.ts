@@ -123,7 +123,6 @@ function counterColor(hits: Hits): "green" | "yellow" | "red" {
 
 function counterImageUrl(hits: Hits): string {
   if (display === "GM") {
-    if (hits.remaining === 0) return new URL(hits.maximum > 10 ? "/hit-grids/red/0-3.svg" : "/hit-grids/red/0.svg", window.location.origin).href;
     return new URL(`/hit-grids/base/${hits.maximum}.svg?v=2`, window.location.origin).href;
   }
   const divisor = gcd(hits.remaining, hits.maximum);
@@ -156,7 +155,7 @@ function boxOffset(maximum: number, index: number, width: number, offsetPx: numb
 }
 
 function boxImageUrl(hits: Hits, index: number): string {
-  const state = index < hits.remaining ? counterColor(hits) : "empty";
+  const state = hits.remaining === 0 ? "gray" : index < hits.remaining ? counterColor(hits) : "empty";
   return new URL(`/hit-grids/box/${state}.svg`, window.location.origin).href;
 }
 
@@ -182,7 +181,7 @@ function makeBox(token: Item, hits: Hits, index: number, x: number, y: number, w
     .attachedTo(token.id)
     .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY", "VISIBLE"])
     .layer("TEXT")
-    .visible(hits.remaining > 0)
+    .visible(true)
     .locked(true)
     .disableHit(true)
     .name("Token Hit Box")
@@ -340,7 +339,6 @@ async function reconcile(items: Item[]): Promise<void> {
               const box = item as Billboard;
               const index = indices.get(box.id);
               if (index === undefined) continue;
-              box.visible = hits.remaining > 0;
               const nextUrl = boxImageUrl(hits, index);
               if (box.image.url !== nextUrl) box.image.url = nextUrl;
               if (geometryChanged) {
@@ -354,19 +352,7 @@ async function reconcile(items: Item[]): Promise<void> {
       }
       Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, zeroLabel: hits.zeroLabel,
         offsetPx: hits.offsetPx, x, y, width, geometryKey, viewScale, visible });
-      if (display === "GM" && hits.remaining === 0) {
-        if (counter.labelId) {
-          if (zeroLabelChanged || geometryChanged || viewScaleChanged || visibilityChanged) {
-            await OBR.scene.local.updateItems([counter.labelId], (items) => {
-              for (const item of items) if (item.type === "LABEL") updateZeroLabel(item as Label, hits, x, y, width, viewScale, visible);
-            });
-          }
-        } else {
-          const label = makeZeroLabel(token, hits, x, y, width, viewScale);
-          await OBR.scene.local.addItems([label]);
-          counter.labelId = label.id;
-        }
-      } else if (counter.labelId) {
+      if (counter.labelId) {
         await OBR.scene.local.deleteItems([counter.labelId]);
         counter.labelId = undefined;
       }
@@ -399,13 +385,12 @@ async function reconcile(items: Item[]): Promise<void> {
       .minViewScale(1)
       .maxViewScale(1)
       .build();
-    const label = hits.remaining === 0 ? makeZeroLabel(token, hits, x, y, width, viewScale) : undefined;
     const boxes = display === "GM"
       ? Array.from({ length: hits.maximum }, (_, index) => makeBox(token, hits, index, x, y, width, sceneDpi))
       : [];
-    await OBR.scene.local.addItems([billboard, ...boxes, ...(label ? [label] : [])]);
+    await OBR.scene.local.addItems([billboard, ...boxes]);
     counters.set(token.id, {
-      id: billboard.id, kind, labelId: label?.id, boxIds: boxes.map((box) => box.id), tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
+      id: billboard.id, kind, boxIds: boxes.map((box) => box.id), tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
       zeroLabel: hits.zeroLabel,
       offsetPx: hits.offsetPx, geometryKey, viewScale,
       x, y, width, visible,
