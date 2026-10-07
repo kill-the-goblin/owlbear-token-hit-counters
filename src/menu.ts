@@ -1,5 +1,5 @@
 import OBR, { type Item } from "@owlbear-rodeo/sdk";
-import { AC_KEY, HITS_KEY, MAX_HITS, MAX_HP_PER_BOX, hitsData, readAC, readHits, type Hits } from "./hits";
+import { AC_KEY, DEFAULT_OFFSET_PX, HITS_KEY, MAX_HITS, MAX_HP_PER_BOX, hitsData, readAC, readHits, type Hits } from "./hits";
 import "./style.css";
 
 const input = document.querySelector<HTMLInputElement>("#maximum")!;
@@ -35,7 +35,7 @@ function render(item: Item | undefined): void {
   currentAC = item ? readAC(item.metadata[AC_KEY]) : null;
   if (document.activeElement !== input) input.value = current ? String(current.maximum) : "";
   if (document.activeElement !== remaining) remaining.value = current ? String(current.remaining) : pendingZero ? "0" : "";
-  if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? 0);
+  if (document.activeElement !== offset) offset.value = String(current?.offsetPx ?? DEFAULT_OFFSET_PX);
   if (document.activeElement !== hpPerBox) hpPerBox.value = String(current?.hpPerBox ?? 1);
   if (document.activeElement !== ac) ac.value = currentAC === null ? "" : String(currentAC);
   input.disabled = !item;
@@ -238,7 +238,7 @@ ac.addEventListener("keydown", (event) => {
 offset.addEventListener("blur", saveSettings);
 offset.addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); offset.blur(); }
-  if (event.key === "Escape") { offset.value = String(current?.offsetPx ?? 0); offset.blur(); }
+  if (event.key === "Escape") { offset.value = String(current?.offsetPx ?? DEFAULT_OFFSET_PX); offset.blur(); }
 });
 hpPerBox.addEventListener("blur", saveHpPerBox);
 hpPerBox.addEventListener("focus", () => hpPerBox.select());

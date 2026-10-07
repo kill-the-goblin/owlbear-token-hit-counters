@@ -8,6 +8,7 @@ export const DEFAULT_ZERO_LABEL = "DEAD";
 export const MAX_ZERO_LABEL_LENGTH = 16;
 export const MAX_HITS = 15;
 export const MAX_HP_PER_BOX = 999;
+export const DEFAULT_OFFSET_PX = -5;
 
 export function readAC(value: unknown): number | null {
   return Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 99
@@ -30,7 +31,7 @@ export function readHits(value: unknown): Hits | null {
     Number.isSafeInteger(data.remaining) && data.maximum! >= 1 &&
     data.maximum! <= MAX_HITS && data.remaining! >= 0 &&
     data.remaining! <= data.maximum!)) return null;
-  const offsetPx = data.offsetPx ?? 0;
+  const offsetPx = data.offsetPx ?? DEFAULT_OFFSET_PX;
   if (!Number.isSafeInteger(offsetPx) || offsetPx < -200 || offsetPx > 200) return null;
   const zeroLabel = (data.zeroLabel ?? DEFAULT_ZERO_LABEL);
   if (typeof zeroLabel !== "string" || !zeroLabel.trim() ||
@@ -43,7 +44,7 @@ export function readHits(value: unknown): Hits | null {
 export function hitsData(maximum: number, remaining = maximum, settings?: Pick<Hits, "offsetPx" | "zeroLabel" | "hpPerBox">): Hits | null {
   return maximum === 0 ? null : {
     version: 1, maximum, remaining,
-    offsetPx: settings?.offsetPx ?? 0,
+    offsetPx: settings?.offsetPx ?? DEFAULT_OFFSET_PX,
     zeroLabel: (settings?.zeroLabel ?? DEFAULT_ZERO_LABEL).toUpperCase(),
     hpPerBox: settings?.hpPerBox ?? 1,
   };
