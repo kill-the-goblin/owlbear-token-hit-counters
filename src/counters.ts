@@ -55,16 +55,15 @@ export function tokenForCounter(itemId: string): string | undefined {
 
 export async function tokenAtGridPoint(point: Vector2): Promise<string | undefined> {
   if (display !== "GM" || counters.size === 0) return undefined;
-  const viewScale = await OBR.viewport.getScale();
-  if (!Number.isFinite(viewScale) || viewScale <= 0) return undefined;
-  for (const counter of counters.values()) {
-    if (!counter.visible) continue;
-    const halfWidth = counter.width / (2 * viewScale);
-    const bottom = counter.y + counter.offsetPx / viewScale;
-    const gridHeight = counter.maximum > 10 ? 0.6 : 0.4;
-    const top = bottom - counter.width * gridHeight / viewScale;
-    if (point.x >= counter.x - halfWidth && point.x <= counter.x + halfWidth &&
-        point.y >= top && point.y <= bottom) return counter.tokenId;
+  const visible = [...counters.values()].filter((counter) => counter.visible);
+  const bounds = await Promise.allSettled(visible.map((counter) => OBR.scene.local.getItemBounds([counter.id])));
+  for (let index = 0; index < visible.length; index += 1) {
+    const result = bounds[index];
+    if (result.status !== "fulfilled") continue;
+    const { min, max } = result.value;
+    if (point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y) {
+      return visible[index].tokenId;
+    }
   }
   return undefined;
 }
