@@ -9,6 +9,8 @@ export const MAX_ZERO_LABEL_LENGTH = 16;
 export const MAX_HITS = 15;
 export const MAX_HP_PER_BOX = 999;
 export const DEFAULT_OFFSET_PX = 0;
+export const DEFAULT_HP_PER_BOX = 5;
+const LEGACY_HP_PER_BOX = 1;
 
 export function readAC(value: unknown): number | null {
   return Number.isSafeInteger(value) && (value as number) >= 1 && (value as number) <= 99
@@ -36,7 +38,7 @@ export function readHits(value: unknown): Hits | null {
   const zeroLabel = (data.zeroLabel ?? DEFAULT_ZERO_LABEL);
   if (typeof zeroLabel !== "string" || !zeroLabel.trim() ||
       Array.from(zeroLabel).length > MAX_ZERO_LABEL_LENGTH || /[\x00-\x1f\x7f]/.test(zeroLabel)) return null;
-  const hpPerBox = data.hpPerBox ?? 1;
+  const hpPerBox = data.hpPerBox ?? LEGACY_HP_PER_BOX;
   if (!Number.isSafeInteger(hpPerBox) || hpPerBox < 1 || hpPerBox > MAX_HP_PER_BOX) return null;
   return { version: 1, maximum: data.maximum!, remaining: data.remaining!, offsetPx, zeroLabel: zeroLabel.toUpperCase(), hpPerBox };
 }
@@ -46,6 +48,6 @@ export function hitsData(maximum: number, remaining = maximum, settings?: Pick<H
     version: 1, maximum, remaining,
     offsetPx: settings?.offsetPx ?? DEFAULT_OFFSET_PX,
     zeroLabel: (settings?.zeroLabel ?? DEFAULT_ZERO_LABEL).toUpperCase(),
-    hpPerBox: settings?.hpPerBox ?? 1,
+    hpPerBox: settings?.hpPerBox ?? DEFAULT_HP_PER_BOX,
   };
 }
