@@ -155,8 +155,8 @@ function boxOffset(maximum: number, index: number, width: number, offsetPx: numb
 }
 
 function boxImageUrl(hits: Hits, index: number): string {
-  const state = hits.remaining === 0 ? "gray" : index < hits.remaining ? counterColor(hits) : "empty";
-  return new URL(`/hit-grids/box/${state}.svg${state === "gray" ? "?v=2" : ""}`, window.location.origin).href;
+  const state = index < hits.remaining ? counterColor(hits) : "empty";
+  return new URL(`/hit-grids/box/${state}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {

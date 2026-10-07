@@ -5,6 +5,7 @@ body{margin:0}
 .controls{display:flex;align-items:center;gap:8px;min-height:34px}
 .controls:nth-child(2){gap:4px;min-height:30px;font-weight:400}
 .controls:nth-child(2) label{font-weight:400}
+.controls:nth-child(2) label[for="hp-per-box"]{margin-left:10px}
 .controls:nth-child(2) input{height:26px}
 .controls label{font-weight:600;white-space:nowrap}
 .controls label[for="offset"]{font-weight:400}
