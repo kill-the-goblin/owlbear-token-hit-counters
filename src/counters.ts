@@ -124,7 +124,7 @@ function counterColor(hits: Hits): "green" | "yellow" | "red" {
 function counterImageUrl(hits: Hits): string {
   if (display === "GM") {
     if (hits.remaining === 0) return new URL(hits.maximum > 10 ? "/hit-grids/red/0-3.svg" : "/hit-grids/red/0.svg", window.location.origin).href;
-    return new URL(`/hit-grids/base/${hits.maximum}.svg`, window.location.origin).href;
+    return new URL(`/hit-grids/base/${hits.maximum}.svg?v=2`, window.location.origin).href;
   }
   const divisor = gcd(hits.remaining, hits.maximum);
   const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
@@ -155,8 +155,9 @@ function boxOffset(maximum: number, index: number, width: number, offsetPx: numb
   };
 }
 
-function boxImageUrl(hits: Hits): string {
-  return new URL(`/hit-grids/box/${counterColor(hits)}.svg`, window.location.origin).href;
+function boxImageUrl(hits: Hits, index: number): string {
+  const state = index < hits.remaining ? counterColor(hits) : "empty";
+  return new URL(`/hit-grids/box/${state}.svg`, window.location.origin).href;
 }
 
 function counterSize(tokenWidth: number, sceneDpi: number): number {
@@ -173,7 +174,7 @@ function tokenGeometryKey(token: Item): string {
 
 function makeBox(token: Item, hits: Hits, index: number, x: number, y: number, width: number, sceneDpi: number): Billboard {
   return buildBillboard(
-    { width: BOX_IMAGE_SIZE, height: BOX_IMAGE_SIZE, mime: "image/svg+xml", url: boxImageUrl(hits) },
+    { width: BOX_IMAGE_SIZE, height: BOX_IMAGE_SIZE, mime: "image/svg+xml", url: boxImageUrl(hits, index) },
     { dpi: sceneDpi * IMAGE_SCALE, offset: boxOffset(hits.maximum, index, width, hits.offsetPx) },
   )
     .position({ x, y })
@@ -181,7 +182,7 @@ function makeBox(token: Item, hits: Hits, index: number, x: number, y: number, w
     .attachedTo(token.id)
     .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY", "VISIBLE"])
     .layer("TEXT")
-    .visible(index < hits.remaining)
+    .visible(hits.remaining > 0)
     .locked(true)
     .disableHit(true)
     .name("Token Hit Box")
@@ -329,7 +330,8 @@ async function reconcile(items: Item[]): Promise<void> {
           await OBR.scene.local.addItems(boxes);
           counter.boxIds = boxes.map((box) => box.id);
         } else if (remainingChanged || colorChanged || geometryChanged || visibilityChanged) {
-          const ids = counter.boxIds.filter((_, index) => geometryChanged || colorChanged ||
+          const zeroTransition = (counter.remaining === 0) !== (hits.remaining === 0);
+          const ids = counter.boxIds.filter((_, index) => geometryChanged || zeroTransition || (colorChanged && index < hits.remaining) ||
             (index < counter.remaining) !== (index < hits.remaining));
           const indices = new Map(counter.boxIds.map((id, index) => [id, index]));
           if (ids.length) await OBR.scene.local.updateItems(ids, (items) => {
@@ -338,8 +340,9 @@ async function reconcile(items: Item[]): Promise<void> {
               const box = item as Billboard;
               const index = indices.get(box.id);
               if (index === undefined) continue;
-              box.visible = index < hits.remaining;
-              if (colorChanged) box.image.url = boxImageUrl(hits);
+              box.visible = hits.remaining > 0;
+              const nextUrl = boxImageUrl(hits, index);
+              if (box.image.url !== nextUrl) box.image.url = nextUrl;
               if (geometryChanged) {
                 box.grid.offset = boxOffset(hits.maximum, index, width, hits.offsetPx);
                 box.position = { x, y };
