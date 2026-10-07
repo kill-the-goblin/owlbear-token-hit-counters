@@ -60,8 +60,12 @@ export async function tokenAtGridPoint(point: Vector2): Promise<string | undefin
   for (let index = 0; index < visible.length; index += 1) {
     const result = bounds[index];
     if (result.status !== "fulfilled") continue;
-    const { min, max } = result.value;
-    if (point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y) {
+    const { min, max, width } = result.value;
+    // Owlbear can report the older two-row height for a resized billboard.
+    // Anchor the click surface to its bottom edge and use the SVG's full aspect ratio.
+    const gridHeight = width * (visible[index].maximum > 10 ? 0.6 : 0.4);
+    const top = max.y - gridHeight;
+    if (point.x >= min.x && point.x <= max.x && point.y >= top && point.y <= max.y) {
       return visible[index].tokenId;
     }
   }
