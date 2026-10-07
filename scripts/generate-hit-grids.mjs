@@ -69,7 +69,8 @@ for (let maximum = 1; maximum <= maxHits; maximum += 1) {
         : `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="#000" fill-opacity="0.12" stroke="#fff" stroke-opacity="0.4" stroke-width="1"/>`;
     }).join("");
     const height = maximum > 10 ? 60 : 40;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="${height * 8}" viewBox="0 0 100 ${height}">${boxes}</svg>\n`;
+    // A faint full-size surface makes spent boxes and gaps hit the billboard too.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="${height * 8}" viewBox="0 0 100 ${height}"><rect width="100" height="${height}" fill="#fff" fill-opacity="0.02"/>${boxes}</svg>\n`;
     await writeFile(new URL(`${remaining}-${maximum}.svg`, folder), svg);
   }
 }
