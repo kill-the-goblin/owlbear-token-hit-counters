@@ -75,6 +75,28 @@ for (let maximum = 1; maximum <= maxHits; maximum += 1) {
   }
 }
 
+// The GM billboard stays on this URL while individual filled boxes are toggled.
+const baseFolder = new URL("base/", output);
+await mkdir(baseFolder, { recursive: true });
+for (let maximum = 1; maximum <= maxHits; maximum += 1) {
+  const height = maximum > 10 ? 60 : 40;
+  const boxes = Array.from({ length: maximum }, (_, index) => {
+    const { x, y } = boxPosition(maximum, index);
+    return `<rect x="${x}" y="${y}" width="17" height="17" rx="2" fill="#000" fill-opacity="0.12" stroke="#fff" stroke-opacity="0.4" stroke-width="1"/>`;
+  }).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="${height * 8}" viewBox="0 0 100 ${height}"><rect width="100" height="${height}" fill="#fff" fill-opacity="0.02"/>${boxes}</svg>\n`;
+  await writeFile(new URL(`${maximum}.svg`, baseFolder), svg);
+}
+
+const boxFolder = new URL("box/", output);
+await mkdir(boxFolder, { recursive: true });
+for (const id of ["green", "yellow", "red"]) {
+  const color = palette.find((entry) => entry.id === id);
+  if (!color) throw new Error(`Missing box color: ${id}`);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 18 18"><rect x="0.5" y="0.5" width="17" height="17" rx="2" fill="${color.fill}" stroke="${color.stroke}" stroke-width="1"/></svg>\n`;
+  await writeFile(new URL(`${id}.svg`, boxFolder), svg);
+}
+
 const zeroOutline = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 100 40"><rect x="1" y="1" width="98" height="38" rx="3" fill="#000" fill-opacity="0.08" stroke="#fff" stroke-opacity="0.5" stroke-width="1"/></svg>\n`;
 await writeFile(new URL("red/0.svg", output), zeroOutline);
 const zeroOutlineThreeRows = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 100 60"><rect x="1" y="1" width="98" height="58" rx="3" fill="#000" fill-opacity="0.08" stroke="#fff" stroke-opacity="0.5" stroke-width="1"/></svg>\n`;

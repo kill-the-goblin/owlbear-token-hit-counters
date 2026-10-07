@@ -1,10 +1,11 @@
-import OBR, { buildBillboard, buildLabel, type Billboard, type Item, type Label, type Vector2 } from "@owlbear-rodeo/sdk";
+import OBR, { buildBillboard, buildLabel, type Billboard, type Image, type Item, type Label, type Vector2 } from "@owlbear-rodeo/sdk";
 import { AC_KEY, HITS_KEY, ID, readAC, readHits, type Hits } from "./hits";
 
 type Counter = {
   id: string;
   kind: "BILLBOARD" | "LABEL";
   labelId?: string;
+  boxIds?: string[];
   tokenId: string;
   maximum: number;
   remaining: number;
@@ -13,6 +14,7 @@ type Counter = {
   x: number;
   y: number;
   width: number;
+  geometryKey: string;
   viewScale: number;
   visible: boolean;
 };
@@ -22,6 +24,7 @@ type ACBadge = {
   value: number;
   x: number;
   y: number;
+  geometryKey: string;
   visible: boolean;
 };
 
@@ -34,6 +37,7 @@ const THREE_ROW_GRID_HEIGHT = 60 * IMAGE_SCALE;
 const BAR_HEIGHT = 19 * IMAGE_SCALE;
 const AC_SIZE = 26 * IMAGE_SCALE;
 const AC_INSET = 2 * IMAGE_SCALE;
+const BOX_IMAGE_SIZE = 18 * IMAGE_SCALE;
 let latestItems: Item[] | null = null;
 let sceneItems: Item[] | null = null;
 let syncing = false;
@@ -120,15 +124,71 @@ function counterColor(hits: Hits): "green" | "yellow" | "red" {
 function counterImageUrl(hits: Hits): string {
   if (display === "GM") {
     if (hits.remaining === 0) return new URL(hits.maximum > 10 ? "/hit-grids/red/0-3.svg" : "/hit-grids/red/0.svg", window.location.origin).href;
-    return new URL(`/hit-grids/${counterColor(hits)}/${hits.remaining}-${hits.maximum}.svg`, window.location.origin).href;
+    return new URL(`/hit-grids/base/${hits.maximum}.svg`, window.location.origin).href;
   }
   const divisor = gcd(hits.remaining, hits.maximum);
   const fraction = `${hits.remaining / divisor}-${hits.maximum / divisor}`;
   return new URL(`/player-bars/${counterColor(hits)}/${fraction}.svg`, window.location.origin).href;
 }
 
+function boxPosition(maximum: number, index: number): Vector2 {
+  if (maximum <= 5) return { x: 1 + (5 - maximum) * 10 + index * 20, y: 21 };
+  const rows = maximum <= 10 ? 2 : 3;
+  const counts = Array.from({ length: rows }, () => Math.floor(maximum / rows));
+  for (let extra = maximum % rows, row = rows - 1; extra > 0; extra -= 1, row -= 1) counts[row] += 1;
+  let remainingIndex = index;
+  for (let row = rows - 1; row >= 0; row -= 1) {
+    if (remainingIndex < counts[row]) {
+      return { x: 1 + (5 - counts[row]) * 10 + remainingIndex * 20, y: 1 + row * 20 };
+    }
+    remainingIndex -= counts[row];
+  }
+  throw new Error(`Invalid hit box ${index} of ${maximum}`);
+}
+
+function boxOffset(maximum: number, index: number, width: number, offsetPx: number): Vector2 {
+  const position = boxPosition(maximum, index);
+  const gridHeight = maximum > 10 ? 60 : 40;
+  return {
+    x: (50.5 - position.x) * IMAGE_SCALE,
+    y: (gridHeight - position.y + 0.5) * IMAGE_SCALE - offsetPx * IMAGE_WIDTH / width,
+  };
+}
+
+function boxImageUrl(hits: Hits): string {
+  return new URL(`/hit-grids/box/${counterColor(hits)}.svg`, window.location.origin).href;
+}
+
 function counterSize(tokenWidth: number, sceneDpi: number): number {
   return tokenWidth / sceneDpi * 100;
+}
+
+function tokenGeometryKey(token: Item): string {
+  const image = token.type === "IMAGE" ? token as Image : undefined;
+  return JSON.stringify({
+    position: token.position, scale: token.scale, rotation: token.rotation,
+    image: image?.image, grid: image?.grid,
+  });
+}
+
+function makeBox(token: Item, hits: Hits, index: number, x: number, y: number, width: number, sceneDpi: number): Billboard {
+  return buildBillboard(
+    { width: BOX_IMAGE_SIZE, height: BOX_IMAGE_SIZE, mime: "image/svg+xml", url: boxImageUrl(hits) },
+    { dpi: sceneDpi * IMAGE_SCALE, offset: boxOffset(hits.maximum, index, width, hits.offsetPx) },
+  )
+    .position({ x, y })
+    .scale({ x: width / 100, y: width / 100 })
+    .attachedTo(token.id)
+    .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY", "VISIBLE"])
+    .layer("TEXT")
+    .visible(index < hits.remaining)
+    .locked(true)
+    .disableHit(true)
+    .name("Token Hit Box")
+    .metadata({ [`${ID}/counter`]: token.id })
+    .minViewScale(1)
+    .maxViewScale(1)
+    .build();
 }
 
 function makeZeroLabel(token: Item, hits: Hits, x: number, y: number, width: number, viewScale: number): Label {
@@ -153,9 +213,9 @@ function makeZeroLabel(token: Item, hits: Hits, x: number, y: number, width: num
     .position({ x, y: y + hits.offsetPx / viewScale })
     .scale({ x: width / 100, y: width / 100 })
     .attachedTo(token.id)
-    .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY"])
+    .disableAttachmentBehavior(display === "GM" ? ["ROTATION", "LOCKED", "COPY", "VISIBLE"] : ["ROTATION", "LOCKED", "COPY"])
     .layer("TEXT")
-    .visible(token.visible)
+    .visible(display === "GM" || token.visible)
     .locked(true)
     .disableHit(true)
     .name("Token Hits Zero Label")
@@ -195,7 +255,7 @@ async function reconcile(items: Item[]): Promise<void> {
 
   const obsolete = [...counters.values()].filter((counter) => !wanted.has(counter.tokenId));
   if (obsolete.length) {
-    await OBR.scene.local.deleteItems(obsolete.flatMap((counter) => [counter.id, ...(counter.labelId ? [counter.labelId] : [])]));
+    await OBR.scene.local.deleteItems(obsolete.flatMap((counter) => [counter.id, ...(counter.labelId ? [counter.labelId] : []), ...(counter.boxIds ?? [])]));
     for (const counter of obsolete) counters.delete(counter.tokenId);
   }
 
@@ -209,55 +269,95 @@ async function reconcile(items: Item[]): Promise<void> {
   const sceneDpi = await OBR.scene.grid.getDpi();
   const viewScale = await OBR.viewport.getScale();
   for (const { token, hits } of wanted.values()) {
-    const bounds = await OBR.scene.items.getItemBounds([token.id]);
-    const x = bounds.min.x + bounds.width / 2;
-    const y = bounds.min.y;
-    const width = counterSize(bounds.width, sceneDpi);
+    const visible = display === "GM" || token.visible;
+    const geometryKey = tokenGeometryKey(token);
+    let counter = counters.get(token.id);
+    const bounds = counter?.geometryKey === geometryKey ? undefined : await OBR.scene.items.getItemBounds([token.id]);
+    const x = bounds ? bounds.min.x + bounds.width / 2 : counter!.x;
+    const y = bounds ? bounds.min.y : counter!.y;
+    const width = bounds ? counterSize(bounds.width, sceneDpi) : counter!.width;
     const imageHeight = display === "GM"
       ? hits.maximum > 10 ? THREE_ROW_GRID_HEIGHT : GRID_HEIGHT
       : hits.remaining === 0 ? GRID_HEIGHT : BAR_HEIGHT;
     const kind = display === "PLAYER" && hits.remaining === 0 ? "LABEL" : "BILLBOARD";
     // The grid's bottom edge rests on the token's top edge at zero offset.
     const offsetY = imageHeight - hits.offsetPx * IMAGE_WIDTH / width;
-    let counter = counters.get(token.id);
     if (counter && counter.kind !== kind) {
-      await OBR.scene.local.deleteItems([counter.id, ...(counter.labelId ? [counter.labelId] : [])]);
+      await OBR.scene.local.deleteItems([counter.id, ...(counter.labelId ? [counter.labelId] : []), ...(counter.boxIds ?? [])]);
       counters.delete(token.id);
       counter = undefined;
     }
     if (counter) {
+      const maximumChanged = counter.maximum !== hits.maximum;
+      const remainingChanged = counter.remaining !== hits.remaining;
+      const zeroLabelChanged = counter.zeroLabel !== hits.zeroLabel;
+      const viewScaleChanged = counter.viewScale !== viewScale;
+      const visibilityChanged = counter.visible !== visible;
+      const geometryChanged = counter.offsetPx !== hits.offsetPx || counter.x !== x || counter.y !== y || counter.width !== width;
+      const colorChanged = display === "GM" && counterColor({ ...hits, maximum: counter.maximum, remaining: counter.remaining }) !== counterColor(hits);
       if (counter.maximum !== hits.maximum || counter.remaining !== hits.remaining ||
-          counter.zeroLabel !== hits.zeroLabel ||
-          counter.offsetPx !== hits.offsetPx ||
-          counter.x !== x || counter.y !== y || counter.width !== width ||
-          ((kind === "LABEL" || counter.labelId) && counter.viewScale !== viewScale) ||
-          counter.visible !== token.visible) {
+          zeroLabelChanged ||
+          geometryChanged ||
+          ((kind === "LABEL" || counter.labelId) && viewScaleChanged) ||
+          visibilityChanged) {
         await OBR.scene.local.updateItems([counter.id], (items) => {
           for (const item of items) {
             if (item.type === "LABEL") {
-              updateZeroLabel(item as Label, hits, x, y, width, viewScale, token.visible);
+              updateZeroLabel(item as Label, hits, x, y, width, viewScale, visible);
             } else if (item.type === "BILLBOARD") {
               const billboard = item as Billboard;
-              billboard.image.url = counterImageUrl(hits);
-              billboard.image.height = imageHeight;
-              billboard.grid.offset.y = offsetY;
-              billboard.scale = { x: width / 100, y: width / 100 };
-              billboard.position = { x, y };
-              billboard.visible = token.visible;
+              const nextUrl = counterImageUrl(hits);
+              if (billboard.image.url !== nextUrl) billboard.image.url = nextUrl;
+              if (billboard.image.height !== imageHeight) billboard.image.height = imageHeight;
+              if (geometryChanged || maximumChanged) {
+                billboard.grid.offset.y = offsetY;
+                billboard.scale = { x: width / 100, y: width / 100 };
+                billboard.position = { x, y };
+              }
+              if (visibilityChanged) billboard.visible = visible;
               billboard.description = display === "GM"
                 ? `${hits.remaining} of ${hits.maximum} hits remaining`
                 : "Token hits bar";
             }
           }
         });
-        Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, zeroLabel: hits.zeroLabel,
-          offsetPx: hits.offsetPx, x, y, width, viewScale, visible: token.visible });
       }
+      if (display === "GM") {
+        if (maximumChanged || !counter.boxIds) {
+          if (counter.boxIds?.length) await OBR.scene.local.deleteItems(counter.boxIds);
+          const boxes = Array.from({ length: hits.maximum }, (_, index) => makeBox(token, hits, index, x, y, width, sceneDpi));
+          await OBR.scene.local.addItems(boxes);
+          counter.boxIds = boxes.map((box) => box.id);
+        } else if (remainingChanged || colorChanged || geometryChanged || visibilityChanged) {
+          const ids = counter.boxIds.filter((_, index) => geometryChanged || colorChanged ||
+            (index < counter.remaining) !== (index < hits.remaining));
+          const indices = new Map(counter.boxIds.map((id, index) => [id, index]));
+          if (ids.length) await OBR.scene.local.updateItems(ids, (items) => {
+            for (const item of items) {
+              if (item.type !== "BILLBOARD") continue;
+              const box = item as Billboard;
+              const index = indices.get(box.id);
+              if (index === undefined) continue;
+              box.visible = index < hits.remaining;
+              if (colorChanged) box.image.url = boxImageUrl(hits);
+              if (geometryChanged) {
+                box.grid.offset = boxOffset(hits.maximum, index, width, hits.offsetPx);
+                box.position = { x, y };
+                box.scale = { x: width / 100, y: width / 100 };
+              }
+            }
+          });
+        }
+      }
+      Object.assign(counter, { maximum: hits.maximum, remaining: hits.remaining, zeroLabel: hits.zeroLabel,
+        offsetPx: hits.offsetPx, x, y, width, geometryKey, viewScale, visible });
       if (display === "GM" && hits.remaining === 0) {
         if (counter.labelId) {
-          await OBR.scene.local.updateItems([counter.labelId], (items) => {
-            for (const item of items) if (item.type === "LABEL") updateZeroLabel(item as Label, hits, x, y, width, viewScale, token.visible);
-          });
+          if (zeroLabelChanged || geometryChanged || viewScaleChanged || visibilityChanged) {
+            await OBR.scene.local.updateItems([counter.labelId], (items) => {
+              for (const item of items) if (item.type === "LABEL") updateZeroLabel(item as Label, hits, x, y, width, viewScale, visible);
+            });
+          }
         } else {
           const label = makeZeroLabel(token, hits, x, y, width, viewScale);
           await OBR.scene.local.addItems([label]);
@@ -274,7 +374,7 @@ async function reconcile(items: Item[]): Promise<void> {
       await OBR.scene.local.addItems([label]);
       counters.set(token.id, {
         id: label.id, kind, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
-        zeroLabel: hits.zeroLabel, offsetPx: hits.offsetPx, x, y, width, viewScale, visible: token.visible,
+        zeroLabel: hits.zeroLabel, offsetPx: hits.offsetPx, x, y, width, geometryKey, viewScale, visible,
       });
       continue;
     }
@@ -285,9 +385,9 @@ async function reconcile(items: Item[]): Promise<void> {
       .position({ x, y })
       .scale({ x: width / 100, y: width / 100 })
       .attachedTo(token.id)
-      .disableAttachmentBehavior(["ROTATION", "LOCKED", "COPY"])
+      .disableAttachmentBehavior(display === "GM" ? ["ROTATION", "LOCKED", "COPY", "VISIBLE"] : ["ROTATION", "LOCKED", "COPY"])
       .layer("TEXT")
-      .visible(token.visible)
+      .visible(visible)
       .locked(true)
       .disableHit(display === "PLAYER")
       .name(display === "GM" ? "Token Hit Counter" : "Token Hits Bar")
@@ -297,20 +397,25 @@ async function reconcile(items: Item[]): Promise<void> {
       .maxViewScale(1)
       .build();
     const label = hits.remaining === 0 ? makeZeroLabel(token, hits, x, y, width, viewScale) : undefined;
-    await OBR.scene.local.addItems(label ? [billboard, label] : [billboard]);
+    const boxes = display === "GM"
+      ? Array.from({ length: hits.maximum }, (_, index) => makeBox(token, hits, index, x, y, width, sceneDpi))
+      : [];
+    await OBR.scene.local.addItems([billboard, ...boxes, ...(label ? [label] : [])]);
     counters.set(token.id, {
-      id: billboard.id, kind, labelId: label?.id, tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
+      id: billboard.id, kind, labelId: label?.id, boxIds: boxes.map((box) => box.id), tokenId: token.id, maximum: hits.maximum, remaining: hits.remaining,
       zeroLabel: hits.zeroLabel,
-      offsetPx: hits.offsetPx, viewScale,
-      x, y, width, visible: token.visible,
+      offsetPx: hits.offsetPx, geometryKey, viewScale,
+      x, y, width, visible,
     });
   }
 
   for (const { token, value } of acWanted.values()) {
-    const bounds = await OBR.scene.items.getItemBounds([token.id]);
-    const x = bounds.max.x;
-    const y = bounds.min.y;
     const badge = acBadges.get(token.id);
+    const geometryKey = tokenGeometryKey(token);
+    if (badge && badge.geometryKey === geometryKey && badge.value === value && badge.visible === token.visible) continue;
+    const bounds = badge?.geometryKey === geometryKey ? undefined : await OBR.scene.items.getItemBounds([token.id]);
+    const x = bounds ? bounds.max.x : badge!.x;
+    const y = bounds ? bounds.min.y : badge!.y;
     if (badge) {
       if (badge.value !== value || badge.x !== x || badge.y !== y ||
           badge.visible !== token.visible) {
@@ -324,8 +429,9 @@ async function reconcile(items: Item[]): Promise<void> {
             acBillboard.description = `Armor Class ${value}`;
           }
         });
-        Object.assign(badge, { value, x, y, visible: token.visible });
+        Object.assign(badge, { value, x, y, geometryKey, visible: token.visible });
       }
+      badge.geometryKey = geometryKey;
       continue;
     }
     const billboard = buildBillboard(
@@ -346,6 +452,6 @@ async function reconcile(items: Item[]): Promise<void> {
       .maxViewScale(1)
       .build();
     await OBR.scene.local.addItems([billboard]);
-    acBadges.set(token.id, { id: billboard.id, value, x, y, visible: token.visible });
+    acBadges.set(token.id, { id: billboard.id, value, x, y, geometryKey, visible: token.visible });
   }
 }
