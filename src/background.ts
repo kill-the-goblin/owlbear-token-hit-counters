@@ -40,7 +40,9 @@ async function flushClicks(tokenId: string): Promise<void> {
 }
 
 function handleCounterClick(event: ToolEvent, doubleClick = false): boolean {
-  const tokenId = (event.target ? tokenForCounter(event.target.id) : undefined) ??
+  const target = event.target;
+  const tokenId = (target?.layer === "CHARACTER" && readHits(target.metadata[HITS_KEY])
+    ? target.id : target ? tokenForCounter(target.id) : undefined) ??
     tokenAtGridPoint(event.pointerPosition);
   if (!tokenId) return true;
   const now = Date.now();
